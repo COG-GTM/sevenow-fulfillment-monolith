@@ -25,7 +25,7 @@ public class StoreService {
   }
 
   private StoreCatalog makeStoreCatalog(StoreCatalogDTO catalog) {
-    return new StoreCatalog(catalog.getProductDTOs().stream().map(mi -> new Product(mi.getId(), mi.getName(), mi.getPrice(), mi.getOnHandQuantity(), mi.getSubstituteProductId())).collect(Collectors.toList()));
+    return new StoreCatalog(catalog.getProducts().stream().map(mi -> new Product(mi.getId(), mi.getName(), mi.getPrice(), mi.getOnHandQuantity(), mi.getSubstituteProductId())).collect(Collectors.toList()));
   }
 
   public Optional<Store> findById(long storeId) {

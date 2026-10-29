@@ -22,7 +22,7 @@ public class StoreCatalogDTO {
     return HashCodeBuilder.reflectionHashCode(this);
   }
 
-  public List<ProductDTO> getProductDTOs() {
+  public List<ProductDTO> getProducts() {
     return products;
   }
 
@@ -31,7 +31,7 @@ public class StoreCatalogDTO {
     return ToStringBuilder.reflectionToString(this);
   }
 
-  public void setProductDTOs(List<ProductDTO> products) {
+  public void setProducts(List<ProductDTO> products) {
     this.products = products;
   }
 

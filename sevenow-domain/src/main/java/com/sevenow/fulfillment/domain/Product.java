@@ -6,7 +6,6 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
 import javax.persistence.*;
-import java.util.Optional;
 
 @Embeddable
 @Access(AccessType.FIELD)
@@ -43,8 +42,8 @@ public class Product {
     return onHandQuantity <= 0;
   }
 
-  public Optional<String> getSubstituteProductId() {
-    return Optional.ofNullable(substituteProductId);
+  public String getSubstituteProductId() {
+    return substituteProductId;
   }
 
   public void setSubstituteProductId(String substituteProductId) {

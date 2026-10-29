@@ -1,45 +1,73 @@
 -- 7NOW demo seed data: one store with a 7-Eleven style catalog, two drivers and one customer.
+-- Uses fixed ids so the README / e2e docs can refer to store 1, drivers 1-2 and customer 1.
+-- "insert ignore" keeps the migration safe on a database that already holds rows with those
+-- ids (e.g. a migrated FTGO instance): existing rows are left untouched and the seed is skipped.
+-- The demo catalog is only loaded when store 1 really is the seeded 7-Eleven #38114.
 use sevenow;
 
-insert into stores (id, store_number, name, street1, street2, city, state, zip) values
+insert ignore into stores (id, store_number, name, street1, street2, city, state, zip) values
   (1, '38114', '7-Eleven #38114', '3200 Hackberry Rd', null, 'Irving', 'TX', '75063');
 
 -- Cold drinks
-insert into store_products (store_id, id, name, price, on_hand_quantity, substitute_product_id) values
-  (1, 'SLURPEE-CHERRY-M',       'Cherry Slurpee (Medium)',              2.19, 40, null),
-  (1, 'SLURPEE-COKE-M',         'Coca-Cola Slurpee (Medium)',           2.19, 35, null),
-  (1, 'BIG-GULP-COKE',          'Big Gulp Coca-Cola (30 oz)',           1.99, 50, null),
-  (1, 'RED-BULL-12OZ',          'Red Bull Energy Drink (12 oz)',        3.49,  0, 'MONSTER-16OZ'),
-  (1, 'MONSTER-16OZ',           'Monster Energy (16 oz)',               2.99, 24, null),
-  (1, 'WATER-7SELECT-1L',       '7-Select Purified Water (1 L)',        1.49, 60, null);
+insert ignore into store_products (store_id, id, name, price, on_hand_quantity, substitute_product_id)
+select seed.* from (
+  select 1, 'SLURPEE-CHERRY-M',       'Cherry Slurpee (Medium)',              2.19, 40, null
+  union all
+  select 1, 'SLURPEE-COKE-M',         'Coca-Cola Slurpee (Medium)',           2.19, 35, null
+  union all
+  select 1, 'BIG-GULP-COKE',          'Big Gulp Coca-Cola (30 oz)',           1.99, 50, null
+  union all
+  select 1, 'RED-BULL-12OZ',          'Red Bull Energy Drink (12 oz)',        3.49,  0, 'MONSTER-16OZ'
+  union all
+  select 1, 'MONSTER-16OZ',           'Monster Energy (16 oz)',               2.99, 24, null
+  union all
+  select 1, 'WATER-7SELECT-1L',       '7-Select Purified Water (1 L)',        1.49, 60, null
+) seed where exists (select 1 from stores where id = 1 and store_number = '38114');
 
 -- Snacks
-insert into store_products (store_id, id, name, price, on_hand_quantity, substitute_product_id) values
-  (1, 'TAKIS-FUEGO-9OZ',        'Takis Fuego (9.9 oz)',                 4.79, 18, null),
-  (1, 'DORITOS-NACHO-9OZ',      'Doritos Nacho Cheese (9.25 oz)',       4.99,  0, 'DORITOS-COOLRANCH-9OZ'),
-  (1, 'DORITOS-COOLRANCH-9OZ',  'Doritos Cool Ranch (9.25 oz)',         4.99, 12, null),
-  (1, 'TROLLI-SOUR-BRITE',      'Trolli Sour Brite Crawlers (5 oz)',    2.49, 30, null),
-  (1, 'SNICKERS-KING',          'Snickers King Size',                   2.29, 45, null);
+insert ignore into store_products (store_id, id, name, price, on_hand_quantity, substitute_product_id)
+select seed.* from (
+  select 1, 'TAKIS-FUEGO-9OZ',        'Takis Fuego (9.9 oz)',                 4.79, 18, null
+  union all
+  select 1, 'DORITOS-NACHO-9OZ',      'Doritos Nacho Cheese (9.25 oz)',       4.99,  0, 'DORITOS-COOLRANCH-9OZ'
+  union all
+  select 1, 'DORITOS-COOLRANCH-9OZ',  'Doritos Cool Ranch (9.25 oz)',         4.99, 12, null
+  union all
+  select 1, 'TROLLI-SOUR-BRITE',      'Trolli Sour Brite Crawlers (5 oz)',    2.49, 30, null
+  union all
+  select 1, 'SNICKERS-KING',          'Snickers King Size',                   2.29, 45, null
+) seed where exists (select 1 from stores where id = 1 and store_number = '38114');
 
 -- Pizza
-insert into store_products (store_id, id, name, price, on_hand_quantity, substitute_product_id) values
-  (1, 'PIZZA-PEPPERONI-WHOLE',  'Pepperoni Pizza (Whole)',              7.99,  0, 'PIZZA-CHEESE-WHOLE'),
-  (1, 'PIZZA-CHEESE-WHOLE',     'Cheese Pizza (Whole)',                 6.99,  6, null),
-  (1, 'PIZZA-PEPPERONI-SLICE',  'Pepperoni Pizza Slice',                2.49, 16, null);
+insert ignore into store_products (store_id, id, name, price, on_hand_quantity, substitute_product_id)
+select seed.* from (
+  select 1, 'PIZZA-PEPPERONI-WHOLE',  'Pepperoni Pizza (Whole)',              7.99,  0, 'PIZZA-CHEESE-WHOLE'
+  union all
+  select 1, 'PIZZA-CHEESE-WHOLE',     'Cheese Pizza (Whole)',                 6.99,  6, null
+  union all
+  select 1, 'PIZZA-PEPPERONI-SLICE',  'Pepperoni Pizza Slice',                2.49, 16, null
+) seed where exists (select 1 from stores where id = 1 and store_number = '38114');
 
 -- Hot food
-insert into store_products (store_id, id, name, price, on_hand_quantity, substitute_product_id) values
-  (1, 'BIG-BITE-HOTDOG',        'Big Bite Hot Dog (1/4 lb)',            2.59, 20, null),
-  (1, 'TAQUITO-BUFFALO',        'Buffalo Chicken Taquito',              1.99, 14, null),
-  (1, 'WINGS-8PC',              'Chicken Wings (8 pc)',                 6.49,  0, null),
-  (1, 'CHICKEN-TENDERS-4PC',    'Chicken Tenders (4 pc)',               5.49,  9, null);
+insert ignore into store_products (store_id, id, name, price, on_hand_quantity, substitute_product_id)
+select seed.* from (
+  select 1, 'BIG-BITE-HOTDOG',        'Big Bite Hot Dog (1/4 lb)',            2.59, 20, null
+  union all
+  select 1, 'TAQUITO-BUFFALO',        'Buffalo Chicken Taquito',              1.99, 14, null
+  union all
+  select 1, 'WINGS-8PC',              'Chicken Wings (8 pc)',                 6.49,  0, null
+  union all
+  select 1, 'CHICKEN-TENDERS-4PC',    'Chicken Tenders (4 pc)',               5.49,  9, null
+) seed where exists (select 1 from stores where id = 1 and store_number = '38114');
 
-insert into drivers (id, available, first_name, last_name, street1, street2, city, state, zip) values
+insert ignore into drivers (id, available, first_name, last_name, street1, street2, city, state, zip) values
   (1, 1, 'Dana',  'Driver',  '5601 N MacArthur Blvd', null, 'Irving', 'TX', '75038'),
   (2, 0, 'Marco', 'Mendoza', '7701 Las Colinas Ridge', null, 'Irving', 'TX', '75063');
 
-insert into customers (id, first_name, last_name) values
+insert ignore into customers (id, first_name, last_name) values
   (1, 'Jordan', 'Nguyen');
 
--- customers use hibernate_sequence; keep generated ids clear of the seeded row
-update hibernate_sequence set next_val = 1000;
+-- customers use hibernate_sequence; keep generated ids clear of the seeded row and of any
+-- existing customers, without ever moving the sequence backwards.
+update hibernate_sequence
+   set next_val = greatest(next_val, 1000, (select coalesce(max(id), 0) + 1 from customers));

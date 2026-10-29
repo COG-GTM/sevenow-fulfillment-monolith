@@ -79,7 +79,7 @@ public class OrderService {
       if (!requested.isOutOfStock()) {
         return new OrderLineItem(requested.getId(), requested.getName(), requested.getPrice(), li.getQuantity());
       }
-      Optional<Product> substitute = requested.getSubstituteProductId()
+      Optional<Product> substitute = Optional.ofNullable(requested.getSubstituteProductId())
               .flatMap(store::findProduct)
               .filter(p -> !p.isOutOfStock());
       if (!substitute.isPresent()) {

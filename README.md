@@ -62,6 +62,8 @@ Flyway (`sevenow-flyway`) runs `V1` (original FTGO schema), `V2__rebrand_7now.sq
 `V3__seed_7now_data.sql` (store #38114 in Irving, TX with 18 products across cold drinks, snacks, pizza and hot
 food, two drivers and one customer). Seeded out-of-stock examples: `PIZZA-PEPPERONI-WHOLE` → substitute
 `PIZZA-CHEESE-WHOLE`; `WINGS-8PC` has no substitute and is rejected.
+The migrations are safe to run on a populated FTGO database (`PREPARING` orders become `PICKING`, migrated products
+start at `on_hand_quantity = 0`, seed rows are `insert ignore`); see `docs/ARCHITECTURE.md` §8.
 
 ## REST API
 

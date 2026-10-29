@@ -46,7 +46,7 @@ public class WaitForMySql extends DefaultTask {
       try {
         System.out.println("Trying to connect...");
 
-        String datasourceUrl = getenv("SPRING_DATASOURCE_URL", () -> String.format("jdbc:mysql://%s/sevenow", getenv("DOCKER_HOST_IP", "localhost")));
+        String datasourceUrl = getenv("SPRING_DATASOURCE_URL", () -> String.format("jdbc:mysql://%s/sevenow?useSSL=false", getenv("DOCKER_HOST_IP", "localhost")));
         String datasourceUsername = getenv("SPRING_DATASOURCE_USERNAME", "mysqluser");
         String datasourcePassword = getenv("SPRING_DATASOURCE_PASSWORD", "mysqlpw");
 

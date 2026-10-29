@@ -149,3 +149,14 @@ Stock is **not** decremented when ordering (not required by the demo); the rule 
 Store `#38114` (Irving, TX) with 18 products — cold drinks, snacks, pizza, hot food — including out-of-stock
 `RED-BULL-12OZ`→`MONSTER-16OZ`, `DORITOS-NACHO-9OZ`→`DORITOS-COOLRANCH-9OZ`, `PIZZA-PEPPERONI-WHOLE`→`PIZZA-CHEESE-WHOLE`
 and `WINGS-8PC` (no substitute); drivers `1` (available) and `2`; customer `1`.
+
+## 8. Migrating an existing FTGO database
+
+`V2`/`V3` are written to run on a populated FTGO schema as well as on an empty one:
+
+| Legacy data | What the migration does |
+|---|---|
+| `orders.order_state = 'PREPARING'` | becomes `PICKING`; `preparing_time` is copied into `picking_time` before the column is dropped |
+| `restaurant_menu_items` rows | become `store_products` with `on_hand_quantity = 0` and no substitute — i.e. **unavailable until stock is loaded**. The migration does not invent inventory; load counts (update `on_hand_quantity`) before taking orders against a migrated store |
+| rows with ids `1`/`2` in `stores`, `drivers`, `customers` | `V3` uses `insert ignore`, so existing rows win and the demo seed is skipped for that id (`store_products` gets a `(store_id, id)` unique key in `V2` for the same reason) |
+| `hibernate_sequence` | set to `greatest(current, 1000, max(customers.id) + 1)` — never moved backwards |
