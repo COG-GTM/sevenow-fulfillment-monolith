@@ -26,7 +26,11 @@ public class Action {
   }
 
   public boolean actionFor(Order order) {
-    return this.order.getId().equals(order.getId());
+    return actionFor(order.getId());
+  }
+
+  public boolean actionFor(long orderId) {
+    return this.order.getId().equals(orderId);
   }
 
   public static Action makePickup(Order order) {
@@ -40,6 +44,10 @@ public class Action {
 
   public ActionType getType() {
     return type;
+  }
+
+  public LocalDateTime getTime() {
+    return time;
   }
 
 }

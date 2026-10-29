@@ -28,3 +28,9 @@ include "sevenow-application"
 include "sevenow-end-to-end-tests-common"
 include "sevenow-end-to-end-tests"
 
+
+include "inventory-service"
+project(":inventory-service").projectDir = file("services/inventory-service")
+
+include "delivery-service"
+project(":delivery-service").projectDir = file("services/delivery-service")

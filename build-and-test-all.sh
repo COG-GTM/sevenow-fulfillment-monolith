@@ -43,7 +43,7 @@ ${DOCKER_COMPOSE?} up -d --build ${DATABASE_SERVICES?}
 
 echo mysql is started
 
-./gradlew :sevenow-flyway:flywayMigrate
+./gradlew :sevenow-flyway:flywayMigrate :inventory-service:flywayMigrate :delivery-service:flywayMigrate
 
 if [ -z "$ASSEMBLE_ONLY" ] ; then
 

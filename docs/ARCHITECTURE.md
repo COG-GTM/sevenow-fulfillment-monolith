@@ -81,15 +81,17 @@ table; "also read/written by" lists every other module that touches it, which is
 |---|---|---|---|---|
 | `customers` | customer-service | `Customer` (`@GeneratedValue` via `hibernate_sequence`) | `id`, `first_name`, `last_name` | order-service reads through `CustomerService.validateOrderForCustomer` (Java call, same tx) |
 | `hibernate_sequence` | customer-service (only sequence user) | Hibernate table generator | `next_val` | — |
-| `stores` | store-service | `Store` | `id`, `store_number`, `name`, `street1..zip` | order-service: `OrderService.createOrder` loads `Store` via `StoreRepository`; `Order.store` is a JPA `@ManyToOne` and `GET /orders` reads `store.name` |
-| `store_products` | store-service | `Store.products` `@ElementCollection` of `Product` | `store_id` (FK → stores), `id`, `name`, `price`, `on_hand_quantity`, `substitute_product_id` | order-service reads `Store.findProduct` for price, stock and substitution at order time |
-| `drivers` | driver-service | `Driver` | `id`, `available`, `first_name`, `last_name`, `street1..zip` | order-service: `DriverRepository.findAllAvailable()` and `Order.assignedDriver` `@ManyToOne` in `OrderService.scheduleDelivery` |
-| `driver_actions` | driver-service | `Driver.plan.actions` `@ElementCollection` of `Action` | `driver_id` (FK → drivers), `order_id` (FK → orders), `type`, `time` | **written by order-service** (`Driver.addAction` during accept); `Action.order` is a `@ManyToOne` to `Order` |
-| `orders` | order-service | `Order` | `id`, `version`, `order_state`, `customer_id`, `store_id` (FK → stores), `assigned_driver_id` (FK → drivers), `accept_time`, `picking_time`, `packed_time`, `ready_for_pickup_time`, `picked_up_time`, `delivered_time`, `ready_by`, `order_minimum`, `delivery_*`, `payment_token` | driver-service reads orders through `Action.order` when serving `GET /drivers/{id}` plan |
+| `stores` | **inventory-service** (`sevenow_inventory`) — was store-service | `com.sevenow.inventory.domain.Store` | `id`, `store_number`, `name`, `street1..zip` | monolith keeps its own `sevenow.stores` copy so `sevenow-store-service` and `Order.store` still work; new consumers use `GET /stores/{id}` on inventory-service (8082) |
+| `store_products` | **inventory-service** (`sevenow_inventory`) — was store-service | `Store.products` `@ElementCollection` of `Product` | `store_id` (FK → stores), `id`, `name`, `price`, `on_hand_quantity`, `substitute_product_id` (unique `(store_id, id)` in `sevenow_inventory`) | stock is decremented only by inventory-service `POST /reservations`; the monolith's `OrderService.createOrder` still reads its local copy for price/substitution (does not decrement) |
+| `drivers` | **delivery-service** (`sevenow_delivery`) — was driver-service | `com.sevenow.delivery.domain.Driver` | `id`, `available`, `first_name`, `last_name`, `street1..zip` | order-service calls `POST /deliveries` via `DeliveryServiceClient` when `sevenow.delivery-service.url` is set; otherwise `LocalDeliveryScheduler` uses the monolith's local `sevenow.drivers` (in-process tests) |
+| `driver_actions` | **delivery-service** (`sevenow_delivery`) — was driver-service | `Driver.plan.actions` `@ElementCollection` of `Action` | `driver_id` (FK → drivers), `order_id` (**plain bigint, no FK**), `type`, `time` | written only by delivery-service `POST /deliveries`; `Action` holds `orderId`, no `@ManyToOne Order` |
+| `orders` | order-service | `Order` | `id`, `version`, `order_state`, `customer_id`, `store_id` (FK → stores), `assigned_driver_id` (plain column since `V4`, holds a delivery-service driver id; `Order.assignedDriverId` is a `Long`, not a `@ManyToOne`), `accept_time`, `picking_time`, `packed_time`, `ready_for_pickup_time`, `picked_up_time`, `delivered_time`, `ready_by`, `order_minimum`, `delivery_*`, `payment_token` | `GET /orders/{id}` reads `driverActions` from delivery-service `GET /drivers/{id}` filtered by `orderId` |
 | `order_line_items` | order-service | `Order.orderLineItems` `@ElementCollection` of `OrderLineItem` | `order_id` (FK → orders), `product_id`, `name`, `price`, `quantity`, `substituted_from_product_id` | — |
 | `flyway_schema_history` | sevenow-flyway | — | — | — |
 
 ### Cross-module seams (what a split must address)
+
+> Status: seams 1 and 2 are addressed by `services/inventory-service` and `services/delivery-service` — see §9.
 
 1. **`orders.store_id` → `stores`** and the `Order.store` `@ManyToOne`: order-service needs store name, product price,
    `on_hand_quantity` and `substitute_product_id` at order time. Candidate: a `GET /stores/{id}` call or a replicated
@@ -160,3 +162,84 @@ and `WINGS-8PC` (no substitute); drivers `1` (available) and `2`; customer `1`.
 | `restaurant_menu_items` rows | become `store_products` with `on_hand_quantity = 0` and no substitute — i.e. **unavailable until stock is loaded**. The migration does not invent inventory; load counts (update `on_hand_quantity`) before taking orders against a migrated store |
 | rows with ids `1`/`2` in `stores`, `drivers`, `customers` | `V3` uses `insert ignore`, so existing rows win and the demo seed is skipped for that id; the demo catalog is only loaded into store 1 if it is the seeded `#38114`, and only for product ids not already present (`store_products` keeps its FTGO shape: no primary key, duplicates are left as they are) |
 | `hibernate_sequence` | set to `greatest(current, 1000, max(customers.id) + 1)` — never moved backwards |
+
+## 9. Extracted services
+
+Two services have been carved out of the ownership map above. Each is a standalone Spring Boot 2.0.3 / Java 8 app
+(single `build.gradle` applying `SevenowServicePlugin` + `IntegrationTestsPlugin` + the Flyway plugin), with its own schema,
+Flyway migrations in `src/main/resources/db/migration` (also applied on startup), its own copies of the value objects
+(`Money`/`Address`/`PersonName`, mapped with `@Embeddable` instead of `orm.xml` — a root `META-INF/orm.xml` inside a Boot fat
+jar is registered twice and fails with "Duplicate XML entry"), Actuator + Micrometer Prometheus (`/actuator/prometheus`), a Springfox Docket on its own package
+(`/swagger-ui.html`) and a Dockerfile. Both are in `settings.gradle` and `docker-compose.yml`; `mysql/schema.sql` creates
+their schemas.
+
+| Service | Path / package | Port | Schema | Owns | Migrations |
+|---|---|---|---|---|---|
+| inventory-service | `services/inventory-service`, `com.sevenow.inventory` | 8082 | `sevenow_inventory` | `stores`, `store_products`, `reservations`, `reservation_items` | `V1` stores/products (V1+V2 monolith shapes), `V2` store `#38114` + 18 products, `V3` reservations |
+| delivery-service | `services/delivery-service`, `com.sevenow.delivery` | 8083 | `sevenow_delivery` | `drivers`, `driver_actions`, `delivery_assignments` | `V1` drivers/driver_actions (`order_id` plain bigint), `V2` drivers 1 and 2, `V3` delivery_assignments (one row per order, PK `order_id`) |
+
+Build / migrate one service on its own: `./build-and-test-service.sh inventory-service` (starts MySQL, runs
+`:<service>:flywayMigrate`, `build`, `integrationTest` against the real schema, then builds its image).
+`./build-and-test-all.sh` migrates all three schemas and runs everything, including `ExtractedServicesEndToEndTests`.
+
+### inventory-service contract
+
+| Method | Path | Body → response |
+|---|---|---|
+| POST | `/stores` | same `CreateStoreRequest` as the monolith → `{"id"}` |
+| GET | `/stores/{storeId}` | store + `products[]` with `id`, `name`, `price`, `onHandQuantity`, `substituteProductId`; 404 if unknown |
+| GET | `/stores/{storeId}/products/{productId}` | one product (price/stock lookup); 404 if unknown |
+| POST | `/reservations/resolve` | `{storeId, items:[{productId, quantity}]}` → `{storeId, items:[…resolved]}`; dry run, no stock change |
+| POST | `/reservations` | `{storeId, items:[{productId, quantity}]}` → **201** `{id, storeId, status:"RESERVED", createdTime, items:[{productId, name, price, quantity, substitutedFromProductId}]}` |
+| POST | `/reservations/{id}/release` | restores on-hand quantities, `status:"RELEASED"`; idempotent (second release is a no-op); 404 if unknown |
+| GET | `/reservations/{id}` | the reservation; 404 if unknown |
+
+Substitution rule (`SubstitutionRule`, moved from `OrderService.makeOrderLineItems`): unknown product id → **400**
+`{"invalidProductId"}`; `onHandQuantity >= quantity` → as is; otherwise the configured `substituteProductId` if *it* has
+`>= quantity` on hand (line item gets `substitutedFromProductId`); otherwise rejected. Any rejection → **409**
+`{"rejectedProductIds":[…]}` (same body as the monolith's 400 on `POST /orders`). Unlike the monolith, the check is
+quantity-aware rather than `> 0`.
+
+Atomicity: `ReservationService.reserve` runs in one transaction; each line is a conditional
+`update store_products set on_hand_quantity = on_hand_quantity - :q where store_id = :s and id = :p and on_hand_quantity >= :q`.
+If any update hits 0 rows (a concurrent reservation won), the request fails with 409 and all decrements roll back, so
+stock never goes negative (`ReservationIntegrationTest.concurrentReservationsNeverOversell`). `reservations.version`
+is an optimistic lock guarding concurrent releases.
+
+### delivery-service contract
+
+| Method | Path | Body → response |
+|---|---|---|
+| POST | `/drivers` | `{name:{firstName,lastName}, address}` → `{"id"}` |
+| POST | `/drivers/{driverId}/availability` | `{available}`; 404 if unknown |
+| GET | `/drivers/{driverId}` | `{id, name, address, available, plan:{actions:[{type, time, orderId}]}}`; 404 if unknown |
+| POST | `/deliveries` | `{orderId, readyBy, deliveryAddress?, eventType?:"OrderAccepted"}` → `{orderId, driverId, deliveryAddress, actions:[PICKUP, DROPOFF]}`; **409** if no driver is available |
+
+Scheduling (`DeliveryService.schedule`, moved from `OrderService.scheduleDelivery`): picks a random driver from
+`DriverRepository.findAllAvailable()`, appends `PICKUP` (no time) and `DROPOFF` at `readyBy + 30 min`, both carrying
+`orderId`. Idempotent per `orderId`, including concurrent retries: the first statement of the transaction is
+`insert ignore into delivery_assignments (order_id)` (primary key = `order_id`), so a second call for the same order blocks
+until the first commits and then returns the already-assigned driver.
+`deliveryAddress` is echoed back but not persisted (`driver_actions` has no address columns).
+
+### Monolith side
+
+- `sevenow-store-service` is unchanged and still serves `/stores` from `sevenow.stores` so the monolith stays deployable;
+  inventory-service is the owner of record and the only writer of stock. Moving order creation onto
+  `POST /reservations` (and dropping the local copy) is the next step.
+- `Order.assignedDriver` (`@ManyToOne Driver`) is now `Order.assignedDriverId` (`Long`, column `assigned_driver_id`);
+  `sevenow-flyway` `V4` drops the `orders_assigned_driver_id` FK.
+- `OrderService.accept` delegates to a `DeliveryScheduler`. `OrderConfiguration` picks `DeliveryServiceClient`
+  (RestTemplate → `POST {url}/deliveries` with an `OrderAccepted` payload, and `GET {url}/drivers/{id}` for
+  `GET /orders/{id}` `driverActions`; connect/read timeouts `sevenow.delivery-service.connect-timeout-ms`=2000 /
+  `read-timeout-ms`=5000) when `sevenow.delivery-service.url` is set (docker-compose sets
+  `SEVENOW_DELIVERY_SERVICE_URL=http://delivery-service:8083`), else `LocalDeliveryScheduler` (the old in-process
+  behaviour, used by `SevenowApplicationTest`). The HTTP call runs inside the accept transaction; if that transaction
+  rolls back after delivery-service committed, retrying the accept is safe because `POST /deliveries` is idempotent.
+- Existing databases: `V4` keeps `orders.assigned_driver_id` values, but `sevenow_delivery` only has seeded drivers 1/2.
+  Before pointing an existing deployment at delivery-service, copy `sevenow.drivers`/`driver_actions` into
+  `sevenow_delivery` with their ids (and a `delivery_assignments` row per order). Until then, `GET /orders/{id}` shows no
+  `driverActions` for an assignment delivery-service doesn't know (404 → empty), rather than failing.
+- In the compose deployment, drivers are created and made available on delivery-service (`:8083/drivers`); the
+  monolith's own `/drivers` endpoints and `sevenow.drivers` table are only used in local mode.
+

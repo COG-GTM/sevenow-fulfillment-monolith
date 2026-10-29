@@ -22,15 +22,16 @@ public class OrderServiceTest {
   private OrderRepository orderRepository;
   private CustomerService customerService;
   private OrderService orderService;
+  private DeliveryScheduler deliveryScheduler;
 
   @Before
   public void setUp() {
     orderRepository = mock(OrderRepository.class);
     StoreRepository storeRepository = mock(StoreRepository.class);
     customerService = mock(CustomerService.class);
-    DriverRepository driverRepository = mock(DriverRepository.class);
+    deliveryScheduler = mock(DeliveryScheduler.class);
     when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(SEVEN_ELEVEN_STORE));
-    orderService = new OrderService(orderRepository, storeRepository, Optional.empty(), customerService, driverRepository);
+    orderService = new OrderService(orderRepository, storeRepository, Optional.empty(), customerService, deliveryScheduler);
   }
 
   @Test
@@ -78,5 +79,19 @@ public class OrderServiceTest {
   public void shouldRejectUnknownProduct() {
     orderService.createOrder(CUSTOMER_ID, STORE_ID,
             Collections.singletonList(new ProductIdAndQuantity("NOT-A-PRODUCT", 1)));
+  }
+
+  @Test
+  public void shouldScheduleDeliveryThroughDeliverySchedulerOnAccept() {
+    Order order = orderService.createOrder(CUSTOMER_ID, STORE_ID,
+            Collections.singletonList(new ProductIdAndQuantity(CHERRY_SLURPEE_ID, 1)));
+    when(orderRepository.findById(99L)).thenReturn(Optional.of(order));
+    java.time.LocalDateTime readyBy = java.time.LocalDateTime.now().plusHours(1);
+    when(deliveryScheduler.scheduleDelivery(order, readyBy)).thenReturn(2L);
+
+    orderService.accept(99L, readyBy);
+
+    assertThat(order.getOrderState()).isEqualTo(OrderState.ACCEPTED);
+    assertThat(order.getAssignedDriverId()).isEqualTo(2L);
   }
 }

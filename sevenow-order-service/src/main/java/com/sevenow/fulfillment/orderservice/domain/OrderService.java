@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 
 import static java.util.stream.Collectors.toList;
 
@@ -28,19 +27,18 @@ public class OrderService {
   private Optional<MeterRegistry> meterRegistry;
 
   private CustomerService customerService;
-  private DriverRepository driverRepository;
-  private Random random = new Random();
+  private DeliveryScheduler deliveryScheduler;
 
   public OrderService(OrderRepository orderRepository,
                       StoreRepository storeRepository,
                       Optional<MeterRegistry> meterRegistry,
-                      CustomerService customerService, DriverRepository driverRepository) {
+                      CustomerService customerService, DeliveryScheduler deliveryScheduler) {
 
     this.orderRepository = orderRepository;
     this.storeRepository = storeRepository;
     this.meterRegistry = meterRegistry;
     this.customerService = customerService;
-    this.driverRepository = driverRepository;
+    this.deliveryScheduler = deliveryScheduler;
   }
 
   @Transactional
@@ -119,16 +117,14 @@ public class OrderService {
   }
 
   public void scheduleDelivery(Order order, LocalDateTime readyBy) {
+    order.schedule(deliveryScheduler.scheduleDelivery(order, readyBy));
+  }
 
-    // Stupid implementation
-
-    List<Driver> drivers = driverRepository.findAllAvailable();
-    Driver driver = drivers.get(random.nextInt(drivers.size()));
-    driver.addAction(Action.makePickup(order));
-    driver.addAction(Action.makeDropoff(order, readyBy.plusMinutes(30)));
-
-    order.schedule(driver);
-
+  @Transactional(readOnly = true)
+  public List<DeliveryAction> deliveryActions(Order order) {
+    return order.getAssignedDriverId() == null
+            ? null
+            : deliveryScheduler.actionsFor(order.getAssignedDriverId(), order.getId());
   }
 
 

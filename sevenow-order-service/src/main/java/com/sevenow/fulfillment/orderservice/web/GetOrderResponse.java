@@ -1,7 +1,7 @@
 package com.sevenow.fulfillment.orderservice.web;
 
 import com.sevenow.fulfillment.common.Money;
-import com.sevenow.fulfillment.domain.Action;
+import com.sevenow.fulfillment.orderservice.domain.DeliveryAction;
 import com.sevenow.fulfillment.domain.OrderLineItem;
 
 import java.util.List;
@@ -13,7 +13,7 @@ public class GetOrderResponse {
   private String storeName;
   private List<OrderLineItem> lineItems;
   private Long assignedDriver;
-  private List<Action> driverActions;
+  private List<DeliveryAction> driverActions;
 
   private GetOrderResponse() {
   }
@@ -26,7 +26,7 @@ public class GetOrderResponse {
     this.assignedDriver = assignedDriver;
   }
 
-  public GetOrderResponse(long orderId, String state, Money orderTotal, String storeName, List<OrderLineItem> lineItems, Long assignedDriver, List<Action> driverActions) {
+  public GetOrderResponse(long orderId, String state, Money orderTotal, String storeName, List<OrderLineItem> lineItems, Long assignedDriver, List<DeliveryAction> driverActions) {
     this.orderId = orderId;
     this.state = state;
     this.orderTotal = orderTotal;
@@ -68,11 +68,11 @@ public class GetOrderResponse {
     return lineItems;
   }
 
-  public List<Action> getDriverActions() {
+  public List<DeliveryAction> getDriverActions() {
     return driverActions;
   }
 
-  public void setDriverActions(List<Action> driverActions) {
+  public void setDriverActions(List<DeliveryAction> driverActions) {
     this.driverActions = driverActions;
   }
 }

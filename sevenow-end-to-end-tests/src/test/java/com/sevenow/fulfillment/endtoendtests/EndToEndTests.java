@@ -6,6 +6,7 @@ public class EndToEndTests extends AbstractEndToEndTests  {
 
   private String host = System.getenv("DOCKER_HOST_IP");
   private int applicationPort = 8081;
+  private int deliveryServicePort = 8083;
 
   @Override
   public String getHost() {
@@ -15,5 +16,10 @@ public class EndToEndTests extends AbstractEndToEndTests  {
   @Override
   public int getApplicationPort() {
     return applicationPort;
+  }
+
+  @Override
+  public int getDeliveryServicePort() {
+    return deliveryServicePort;
   }
 }
