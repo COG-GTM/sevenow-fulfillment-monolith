@@ -382,7 +382,7 @@ public abstract class AbstractEndToEndTests {
             body(new CreateDriverRequest(new PersonName("Dana", "Driver"), new Address("5601 N MacArthur Blvd", null, "Irving", "TX", "75038"))).
             contentType("application/json").
             when().
-            post(baseUrl(getApplicationPort(), "drivers")).
+            post(baseUrl(getDeliveryServicePort(), "drivers")).
             then().
             statusCode(200)
             .extract()
@@ -394,7 +394,7 @@ public abstract class AbstractEndToEndTests {
             body(new DriverAvailability(true)).
             contentType("application/json").
             when().
-            post(baseUrl(getApplicationPort(), "drivers", Long.toString(driverId), "availability")).
+            post(baseUrl(getDeliveryServicePort(), "drivers", Long.toString(driverId), "availability")).
             then().
             statusCode(200);
   }
@@ -426,7 +426,7 @@ public abstract class AbstractEndToEndTests {
 
     given().
             when().
-            get(baseUrl(getApplicationPort(), "drivers", Long.toString(driverId))).
+            get(baseUrl(getDeliveryServicePort(), "drivers", Long.toString(driverId))).
             then().
             statusCode(200)
             .body("plan.actions[0].type", equalTo("PICKUP"))
@@ -477,4 +477,9 @@ public abstract class AbstractEndToEndTests {
   public abstract String getHost();
 
   public abstract int getApplicationPort();
+
+  /** Port serving /drivers: the monolith itself in-process, delivery-service (8083) when it is deployed. */
+  public int getDeliveryServicePort() {
+    return getApplicationPort();
+  }
 }

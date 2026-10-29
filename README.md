@@ -56,6 +56,10 @@ export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64   # or equivalent
 
 * Application: http://localhost:8081
 * Swagger UI: http://localhost:8081/swagger-ui.html
+* inventory-service (stores, catalog, stock reservations): http://localhost:8082/swagger-ui.html
+* delivery-service (drivers, delivery scheduling): http://localhost:8083/swagger-ui.html
+
+See [docs/ARCHITECTURE.md §9](docs/ARCHITECTURE.md#9-extracted-services) for the extracted services' contracts.
 * MySQL: `localhost:3306`, schema `sevenow`, user `mysqluser` / `mysqlpw` (root: `rootpassword`)
 
 Flyway (`sevenow-flyway`) runs `V1` (original FTGO schema), `V2__rebrand_7now.sql` (rename + new columns) and

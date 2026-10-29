@@ -84,8 +84,8 @@ public class OrderController {
             order.getOrderTotal(),
             order.getStore().getName(),
             order.getLineItems(),
-            order.getAssignedDriver() == null ? null : order.getAssignedDriver().getId(),
-            order.getAssignedDriver() == null ? null : order.getAssignedDriver().actionsForDelivery(order)
+            order.getAssignedDriverId(),
+            orderService.deliveryActions(order)
     );
   }
 

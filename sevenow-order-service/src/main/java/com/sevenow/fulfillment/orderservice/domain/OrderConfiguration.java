@@ -11,6 +11,7 @@ import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCusto
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
 
@@ -22,11 +23,23 @@ public class OrderConfiguration {
   public OrderService orderService(StoreRepository storeRepository,
                                    OrderRepository orderRepository,
                                    Optional<MeterRegistry> meterRegistry,
-                                   CustomerService customerService, DriverRepository driverRepository) {
+                                   CustomerService customerService, DeliveryScheduler deliveryScheduler) {
     return new OrderService(orderRepository,
             storeRepository,
             meterRegistry,
-            customerService, driverRepository);
+            customerService, deliveryScheduler);
+  }
+
+  /**
+   * With {@code sevenow.delivery-service.url} set, deliveries are scheduled by the extracted
+   * delivery-service over HTTP; otherwise the monolith keeps scheduling against its own drivers tables.
+   */
+  @Bean
+  public DeliveryScheduler deliveryScheduler(@Value("${sevenow.delivery-service.url:}") String deliveryServiceUrl,
+                                             DriverRepository driverRepository) {
+    return deliveryServiceUrl.isEmpty()
+            ? new LocalDeliveryScheduler(driverRepository)
+            : new DeliveryServiceClient(new RestTemplate(), deliveryServiceUrl);
   }
 
   @Bean

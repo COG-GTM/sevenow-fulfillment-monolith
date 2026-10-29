@@ -53,8 +53,9 @@ public class Order {
   private LocalDateTime pickedUpTime;
   private LocalDateTime deliveredTime;
 
-  @ManyToOne
-  private Driver assignedDriver;
+  /** Driver id assigned by the delivery scheduler; a plain column, not a JPA relationship to drivers. */
+  @Column(name = "assigned_driver_id")
+  private Long assignedDriverId;
 
   private Order() {
   }
@@ -190,12 +191,16 @@ public class Order {
     }
   }
 
-  public void schedule(Driver assignedDriver) {
-    this.assignedDriver = assignedDriver;
+  public void schedule(long assignedDriverId) {
+    this.assignedDriverId = assignedDriverId;
   }
 
-  public Driver getAssignedDriver() {
-    return assignedDriver;
+  public Long getAssignedDriverId() {
+    return assignedDriverId;
+  }
+
+  public DeliveryInformation getDeliveryInformation() {
+    return deliveryInformation;
   }
 
   public void noteDelivered() {
