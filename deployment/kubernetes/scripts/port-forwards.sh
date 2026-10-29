@@ -1,7 +1,7 @@
 #! /bin/bash -e
 
 
-#declare -A MYMAP=( ['ftgo-appi-gateway']=8087  )
+#declare -A MYMAP=( ['sevenow-appi-gateway']=8087  )
 
 doforward() {
     service=$1
@@ -14,7 +14,7 @@ doforward() {
 }
 
 
-doforward 'ftgo-application' 8081
+doforward 'sevenow-application' 8081
 
 exit 0
 

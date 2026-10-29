@@ -1,0 +1,13 @@
+apply plugin: SevenowServicePlugin
+
+dependencies {
+    compile project(":sevenow-customer-service")
+    compile project(":sevenow-order-service")
+    compile project(":sevenow-store-service")
+    compile project(":sevenow-driver-service")
+
+    compile "org.springframework.boot:spring-boot-starter-actuator:$springBootVersion"
+    compile "org.springframework.boot:spring-boot-starter-web:$springBootVersion"
+
+    testCompile project(":sevenow-end-to-end-tests-common")
+}

@@ -2,8 +2,8 @@
 
 set -e
 
-./deployment/kubernetes/scripts/kubernetes-wait-for-ready-pods.sh $(kubectl get pod -l application=ftgo  -o=jsonpath='{.items[*].metadata.name}')
+./deployment/kubernetes/scripts/kubernetes-wait-for-ready-pods.sh $(kubectl get pod -l application=sevenow  -o=jsonpath='{.items[*].metadata.name}')
 
 ./deployment/kubernetes/scripts/port-forwards.sh
 
- DOCKER_HOST_IP=localhost ./gradlew :ftgo-end-to-end-tests:cleanTest :ftgo-end-to-end-tests:test
+ DOCKER_HOST_IP=localhost ./gradlew :sevenow-end-to-end-tests:cleanTest :sevenow-end-to-end-tests:test

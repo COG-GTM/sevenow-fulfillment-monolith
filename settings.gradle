@@ -2,29 +2,29 @@
 
 include "common-swagger"
 
-include "ftgo-flyway"
+include "sevenow-flyway"
 
-include "ftgo-test-util"
-include "ftgo-common"
-include "ftgo-common-jpa"
+include "sevenow-test-util"
+include "sevenow-common"
+include "sevenow-common-jpa"
 
-include "ftgo-domain"
+include "sevenow-domain"
 
 
-include "ftgo-order-service"
-include "ftgo-order-service-api"
+include "sevenow-order-service"
+include "sevenow-order-service-api"
 
-include "ftgo-consumer-service-api"
-include "ftgo-consumer-service"
+include "sevenow-customer-service-api"
+include "sevenow-customer-service"
 
-include "ftgo-restaurant-service-api"
-include "ftgo-restaurant-service"
+include "sevenow-store-service-api"
+include "sevenow-store-service"
 
-include "ftgo-courier-service-api"
-include "ftgo-courier-service"
+include "sevenow-driver-service-api"
+include "sevenow-driver-service"
 
-include "ftgo-application"
+include "sevenow-application"
 
-include "ftgo-end-to-end-tests-common"
-include "ftgo-end-to-end-tests"
+include "sevenow-end-to-end-tests-common"
+include "sevenow-end-to-end-tests"
 

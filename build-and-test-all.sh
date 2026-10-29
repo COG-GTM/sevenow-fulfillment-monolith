@@ -5,7 +5,11 @@ ASSEMBLE_ONLY=
 DATABASE_SERVICES="mysql"
 
 if [ -z "$DOCKER_COMPOSE" ] ; then
-    DOCKER_COMPOSE=docker-compose
+    if command -v docker-compose > /dev/null 2>&1 ; then
+        DOCKER_COMPOSE=docker-compose
+    else
+        DOCKER_COMPOSE="docker compose"
+    fi
 fi
 
 while [ ! -z "$*" ] ; do
@@ -39,11 +43,11 @@ ${DOCKER_COMPOSE?} up -d --build ${DATABASE_SERVICES?}
 
 echo mysql is started
 
-./gradlew :ftgo-flyway:flywayMigrate
+./gradlew :sevenow-flyway:flywayMigrate
 
 if [ -z "$ASSEMBLE_ONLY" ] ; then
 
-  ./gradlew -x :ftgo-end-to-end-tests:test $* build
+  ./gradlew -x :sevenow-end-to-end-tests:test $* build
 
   ${DOCKER_COMPOSE?} build
 

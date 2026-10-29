@@ -2,17 +2,17 @@ version:               2
 jobs:
   build:
     machine:           true
-    working_directory: ~/ftgo-monolith
+    working_directory: ~/sevenow-monolith
     steps:
       - checkout
       - restore_cache:
-          key:         ftgo-monolith-{{ checksum "gradle.properties" }}
+          key:         sevenow-monolith-{{ checksum "gradle.properties" }}
       - run:           TERM=dumb ./gradlew testClasses
       - save_cache:
           paths:
             - ~/.gradle
             - ~/.m2
-          key:         ftgo-monolith-{{ checksum "gradle.properties" }}
+          key:         sevenow-monolith-{{ checksum "gradle.properties" }}
       - run:
           command:     |
             ./.circleci/upgrade-docker-compose.sh

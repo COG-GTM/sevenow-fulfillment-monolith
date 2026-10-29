@@ -21,17 +21,10 @@ subprojects {
     sourceCompatibility = '1.8'
     targetCompatibility = '1.8'
 
-    group = "net.chrisrichardson.ftgo"
+    group = "com.sevenow.fulfillment"
 
     repositories {
         mavenCentral()
-        jcenter()
-
-        eventuateMavenRepoUrl.split(',').each { repoUrl -> maven { url repoUrl } }
-
-        maven {
-            url 'https://repo.spring.io/libs-milestone'
-        }
 
         maven {
             url "${project.rootDir}/build/repo"

@@ -1,2 +1,2 @@
-create database ftgo;
-GRANT ALL PRIVILEGES ON ftgo.* TO 'mysqluser'@'%' WITH GRANT OPTION;
+create database sevenow;
+GRANT ALL PRIVILEGES ON sevenow.* TO 'mysqluser'@'%' WITH GRANT OPTION;

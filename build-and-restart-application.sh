@@ -1,10 +1,10 @@
 #! /bin/bash -e
 
-for SN in ftgo-application ; do
+for SN in sevenow-application ; do
 
     ./gradlew :${SN?}:assemble
-    docker-compose build ${SN?}
-    docker-compose up -d --force-recreate ${SN?}
+    docker compose build ${SN?}
+    docker compose up -d --force-recreate ${SN?}
 done
 
-docker-compose logs -f $*
+docker compose logs -f $*
