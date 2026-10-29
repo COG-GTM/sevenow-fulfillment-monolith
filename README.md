@@ -84,6 +84,22 @@ start at `on_hand_quantity = 0`, seed rows are `insert ignore`); see `docs/ARCHI
 | POST | `/orders/{orderId}/picking`, `/packed`, `/ready` | order-service | store fulfillment steps |
 | POST | `/orders/{orderId}/pickedup`, `/delivered` | order-service | driver steps |
 
+### Authentication and authorization
+
+Order lifecycle transitions require an `Authorization: Bearer <JWT>` header (HS256, signed with
+`SEVENOW_AUTH_JWT_SECRET`, at least 32 bytes; the app refuses to start without it). Tokens are issued by the
+7NOW identity provider / API gateway and must carry `sub`, `exp`, `role` and the id claim for that role:
+
+| `role` | id claim | May call |
+|---|---|---|
+| `CUSTOMER` | `customerId` | `/cancel`, `/revise` on orders it placed |
+| `STORE_ASSOCIATE` | `storeId` | `/accept`, `/picking`, `/packed`, `/ready` on orders for that store |
+| `DRIVER` | `driverId` | `/pickedup`, `/delivered` on orders assigned to that driver |
+
+Missing or invalid tokens get **401**; a valid token for the wrong customer, store or driver gets **403**. The
+checks are enforced in `OrderService` (see `sevenow-security`). `set-env.sh` generates a random local secret if
+`SEVENOW_AUTH_JWT_SECRET` is unset; the end-to-end tests mint tokens with it (`TestTokens`).
+
 Example:
 
 ```bash
@@ -102,6 +118,7 @@ sevenow-order-service(-api)  orders, state machine, substitution, Swagger'd REST
 sevenow-store-service(-api)  stores + product catalog
 sevenow-customer-service(-api)
 sevenow-driver-service(-api)
+sevenow-security             bearer-token (JWT) authentication + caller checks
 sevenow-common, sevenow-common-jpa, common-swagger, sevenow-test-util
 sevenow-flyway               db/migration V1..V3
 sevenow-end-to-end-tests(-common)

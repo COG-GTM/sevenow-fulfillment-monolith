@@ -1,0 +1,7 @@
+dependencies {
+    compile "org.springframework.boot:spring-boot-starter-security:$springBootVersion"
+    compile "org.springframework.boot:spring-boot-starter-web:$springBootVersion"
+    compile "com.nimbusds:nimbus-jose-jwt:$nimbusJoseJwtVersion"
+
+    testCompile "org.springframework.boot:spring-boot-starter-test:$springBootVersion"
+}

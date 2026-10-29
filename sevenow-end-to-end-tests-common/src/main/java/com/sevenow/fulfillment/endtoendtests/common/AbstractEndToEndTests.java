@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import static com.jayway.restassured.RestAssured.given;
+import static com.sevenow.fulfillment.endtoendtests.common.TestTokens.bearer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
@@ -53,6 +54,7 @@ public abstract class AbstractEndToEndTests {
   private final Money priceOfChickenWings = new Money("6.49");
   private static ObjectMapper objectMapper = new ObjectMapper();
   private int driverId;
+  private int assignedDriverId;
 
   private String baseUrl(int port, String path, String... pathElements) {
     assertNotNull("host", getHost());
@@ -132,12 +134,67 @@ public abstract class AbstractEndToEndTests {
 
     verifyOrderState(orderId, "READY_FOR_PICKUP");
 
+    assertLifecycleCallRejected("pickedup", TestTokens.driver(assignedDriverId + 1_000_000), 403);
+    assertLifecycleCallRejected("pickedup", TestTokens.customer(customerId), 403);
+
+    verifyOrderState(orderId, "READY_FOR_PICKUP");
+
     pickupOrder();
+
+    assertLifecycleCallRejected("delivered", TestTokens.driver(assignedDriverId + 1_000_000), 403);
+
+    verifyOrderState(orderId, "PICKED_UP");
+
 
     deliverOrder();
 
     verifyOrderState(orderId, "DELIVERED");
 
+  }
+
+  @Test
+  public void shouldRejectUnauthenticatedAndUnauthorizedLifecycleCalls() {
+
+    createOrder();
+
+    for (String step : new String[]{"cancel", "revise", "accept", "picking", "packed", "ready", "pickedup", "delivered"}) {
+      assertLifecycleCallRejected(step, null, 401);
+      assertLifecycleCallRejected(step, TestTokens.sign("not-the-7now-signing-secret-0123456789", "CUSTOMER", "customerId", customerId), 401);
+    }
+
+    assertLifecycleCallRejected("cancel", TestTokens.customer(customerId + 1_000_000), 403);
+    assertLifecycleCallRejected("revise", TestTokens.customer(customerId + 1_000_000), 403);
+    assertLifecycleCallRejected("cancel", TestTokens.storeAssociate(storeId), 403);
+    assertLifecycleCallRejected("accept", TestTokens.customer(customerId), 403);
+    assertLifecycleCallRejected("accept", TestTokens.storeAssociate(storeId + 1_000_000), 403);
+    assertLifecycleCallRejected("accept", TestTokens.driver(1), 403);
+
+    verifyOrderState(orderId, "APPROVED");
+
+    cancelOrder();
+  }
+
+  private void assertLifecycleCallRejected(String step, String token, int expectedStatus) {
+    String body;
+    switch (step) {
+      case "accept":
+        body = "{\"readyBy\":\"" + LocalDateTime.now().plusHours(9) + "\"}";
+        break;
+      case "revise":
+        body = "{\"revisedLineItemQuantities\":{\"" + CHERRY_SLURPEE_ID + "\":1}}";
+        break;
+      default:
+        body = "{}";
+    }
+    com.jayway.restassured.specification.RequestSpecification request = given().body(body).contentType("application/json");
+    if (token != null) {
+      request = request.header("Authorization", bearer(token));
+    }
+    request.
+            when().
+            post(orderBaseUrl(Long.toString(orderId), step)).
+            then().
+            statusCode(expectedStatus);
   }
 
   @Test
@@ -230,6 +287,7 @@ public abstract class AbstractEndToEndTests {
 
   private void reviseOrder(int orderId) {
     given().
+            header("Authorization", bearer(TestTokens.customer(customerId))).
             body(new ReviseOrderRequest(Collections.singletonMap(CHERRY_SLURPEE_ID, revisedQuantityOfSlurpees)))
             .contentType("application/json").
             when().
@@ -275,6 +333,7 @@ public abstract class AbstractEndToEndTests {
 
   private void cancelOrder(int orderId) {
     given().
+            header("Authorization", bearer(TestTokens.customer(customerId))).
             body("{}").
             contentType("application/json").
             when().
@@ -401,6 +460,7 @@ public abstract class AbstractEndToEndTests {
 
   private void acceptOrder() {
     given().
+            header("Authorization", bearer(TestTokens.storeAssociate(storeId))).
             body(new OrderAcceptance(LocalDateTime.now().plusHours(9))).
             contentType("application/json").
             when().
@@ -423,6 +483,7 @@ public abstract class AbstractEndToEndTests {
       assertThat(assignedDriver).isGreaterThan(0);
       return assignedDriver;
     });
+    assignedDriverId = driverId;
 
     given().
             when().
@@ -436,6 +497,7 @@ public abstract class AbstractEndToEndTests {
 
   private void startPickingOrder() {
     given().
+            header("Authorization", bearer(TestTokens.storeAssociate(storeId))).
             when().
             post(orderBaseUrl(Long.toString(orderId), "picking")).
             then().
@@ -444,6 +506,7 @@ public abstract class AbstractEndToEndTests {
 
   private void orderPacked() {
     given().
+            header("Authorization", bearer(TestTokens.storeAssociate(storeId))).
             when().
             post(orderBaseUrl(Long.toString(orderId), "packed")).
             then().
@@ -452,6 +515,7 @@ public abstract class AbstractEndToEndTests {
 
   private void orderReadyforPickup() {
     given().
+            header("Authorization", bearer(TestTokens.storeAssociate(storeId))).
             when().
             post(orderBaseUrl(Long.toString(orderId), "ready")).
             then().
@@ -460,6 +524,7 @@ public abstract class AbstractEndToEndTests {
 
   private void pickupOrder() {
     given().
+            header("Authorization", bearer(TestTokens.driver(assignedDriverId))).
             when().
             post(orderBaseUrl(Long.toString(orderId), "pickedup")).
             then().
@@ -468,6 +533,7 @@ public abstract class AbstractEndToEndTests {
 
   private void deliverOrder() {
     given().
+            header("Authorization", bearer(TestTokens.driver(assignedDriverId))).
             when().
             post(orderBaseUrl(Long.toString(orderId), "delivered")).
             then().
