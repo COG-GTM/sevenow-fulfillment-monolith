@@ -158,5 +158,5 @@ and `WINGS-8PC` (no substitute); drivers `1` (available) and `2`; customer `1`.
 |---|---|
 | `orders.order_state = 'PREPARING'` | becomes `PICKING`; `preparing_time` is copied into `picking_time` before the column is dropped |
 | `restaurant_menu_items` rows | become `store_products` with `on_hand_quantity = 0` and no substitute — i.e. **unavailable until stock is loaded**. The migration does not invent inventory; load counts (update `on_hand_quantity`) before taking orders against a migrated store |
-| rows with ids `1`/`2` in `stores`, `drivers`, `customers` | `V3` uses `insert ignore`, so existing rows win and the demo seed is skipped for that id (`store_products` gets a `(store_id, id)` unique key in `V2` for the same reason) |
+| rows with ids `1`/`2` in `stores`, `drivers`, `customers` | `V3` uses `insert ignore`, so existing rows win and the demo seed is skipped for that id; the demo catalog is only loaded into store 1 if it is the seeded `#38114`, and only for product ids not already present (`store_products` keeps its FTGO shape: no primary key, duplicates are left as they are) |
 | `hibernate_sequence` | set to `greatest(current, 1000, max(customers.id) + 1)` — never moved backwards |

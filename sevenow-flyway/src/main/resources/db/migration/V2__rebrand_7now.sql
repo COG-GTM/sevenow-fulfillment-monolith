@@ -31,7 +31,6 @@ alter table store_products change restaurant_id store_id bigint not null;
 -- products the store has never counted.
 alter table store_products add column on_hand_quantity integer not null default 0;
 alter table store_products add column substitute_product_id varchar(255);
-alter table store_products add unique key store_products_store_id_product_id (store_id, id);
 
 -- orders: renamed FK columns, PICKING/PACKED timestamps replace preparing_time
 alter table orders change consumer_id customer_id bigint;
