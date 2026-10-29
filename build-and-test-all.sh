@@ -5,7 +5,11 @@ ASSEMBLE_ONLY=
 DATABASE_SERVICES="mysql"
 
 if [ -z "$DOCKER_COMPOSE" ] ; then
-    DOCKER_COMPOSE=docker-compose
+    if command -v docker-compose > /dev/null 2>&1 ; then
+        DOCKER_COMPOSE=docker-compose
+    else
+        DOCKER_COMPOSE="docker compose"
+    fi
 fi
 
 while [ ! -z "$*" ] ; do

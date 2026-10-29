@@ -15,7 +15,7 @@ services:
     depends_on:
       - mysql
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql/ftgo
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql/ftgo?useSSL=false
       SPRING_DATASOURCE_USERNAME: mysqluser
       SPRING_DATASOURCE_PASSWORD: mysqlpw
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.jdbc.Driver
