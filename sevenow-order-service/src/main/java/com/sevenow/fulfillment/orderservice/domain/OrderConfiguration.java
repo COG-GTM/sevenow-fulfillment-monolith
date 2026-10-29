@@ -11,6 +11,7 @@ import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCusto
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
@@ -36,10 +37,15 @@ public class OrderConfiguration {
    */
   @Bean
   public DeliveryScheduler deliveryScheduler(@Value("${sevenow.delivery-service.url:}") String deliveryServiceUrl,
+                                             @Value("${sevenow.delivery-service.connect-timeout-ms:2000}") int connectTimeoutMs,
+                                             @Value("${sevenow.delivery-service.read-timeout-ms:5000}") int readTimeoutMs,
                                              DriverRepository driverRepository) {
+    SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+    requestFactory.setConnectTimeout(connectTimeoutMs);
+    requestFactory.setReadTimeout(readTimeoutMs);
     return deliveryServiceUrl.isEmpty()
             ? new LocalDeliveryScheduler(driverRepository)
-            : new DeliveryServiceClient(new RestTemplate(), deliveryServiceUrl);
+            : new DeliveryServiceClient(new RestTemplate(requestFactory), deliveryServiceUrl);
   }
 
   @Bean

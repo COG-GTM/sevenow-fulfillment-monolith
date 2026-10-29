@@ -64,4 +64,29 @@ public class SubstitutionRuleTest {
   public void unknownProductIsInvalid() {
     rule.resolve(store, Collections.singletonList(new RequestedItem("NOPE", 1)));
   }
+
+  @Test
+  public void duplicateLinesAreCheckedAgainstCombinedQuantity() {
+    try {
+      rule.resolve(store, Arrays.asList(new RequestedItem("MONSTER-16OZ", 2), new RequestedItem("MONSTER-16OZ", 1)));
+      fail();
+    } catch (ProductOutOfStockException e) {
+      assertEquals(Collections.singletonList("MONSTER-16OZ"), e.getRejectedProductIds());
+    }
+  }
+
+  @Test
+  public void substituteStockIsSharedWithDirectRequests() {
+    try {
+      rule.resolve(store, Arrays.asList(new RequestedItem("MONSTER-16OZ", 1), new RequestedItem("RED-BULL-12OZ", 2)));
+      fail();
+    } catch (ProductOutOfStockException e) {
+      assertEquals(Collections.singletonList("RED-BULL-12OZ"), e.getRejectedProductIds());
+    }
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void missingItemsAreABadRequest() {
+    rule.resolve(store, null);
+  }
 }

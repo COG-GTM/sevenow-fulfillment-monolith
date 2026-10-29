@@ -29,11 +29,16 @@ public class DeliveryService {
   /**
    * Assigns the order to a random available driver and appends its PICKUP and DROPOFF
    * (readyBy + 30 min) actions. Idempotent per orderId: if the order is already scheduled the
-   * existing driver is returned, so the monolith can safely retry after a failed transaction.
+   * existing driver is returned, so the monolith can safely retry after a failed transaction. The
+   * {@code delivery_assignments} claim is the first statement of the transaction, so concurrent calls for one
+   * order serialize on its primary key and the loser sees the winner's committed actions.
    */
   public Driver schedule(long orderId, LocalDateTime readyBy) {
-    List<Driver> alreadyAssigned = driverRepository.findByOrderId(orderId);
-    if (!alreadyAssigned.isEmpty()) {
+    if (driverRepository.claimOrder(orderId) == 0) {
+      List<Driver> alreadyAssigned = driverRepository.findByOrderId(orderId);
+      if (alreadyAssigned.isEmpty()) {
+        throw new IllegalStateException("order " + orderId + " is claimed but has no driver actions");
+      }
       return alreadyAssigned.get(0);
     }
     List<Driver> drivers = driverRepository.findAllAvailable();
@@ -43,6 +48,7 @@ public class DeliveryService {
     Driver driver = drivers.get(random.nextInt(drivers.size()));
     driver.addAction(Action.makePickup(orderId));
     driver.addAction(Action.makeDropoff(orderId, readyBy.plusMinutes(30)));
+    driverRepository.assignOrder(orderId, driver.getId());
     return driver;
   }
 }

@@ -34,7 +34,7 @@ public class DeliveryServiceTest {
     deliveryService = new DeliveryService(driverRepository, new Random(0));
     dana = new Driver(new PersonName("Dana", "Driver"), new Address("5601 N MacArthur Blvd", null, "Irving", "TX", "75038"));
     dana.noteAvailable();
-    when(driverRepository.findByOrderId(ORDER_ID)).thenReturn(Collections.emptyList());
+    when(driverRepository.claimOrder(ORDER_ID)).thenReturn(1);
   }
 
   @Test
@@ -56,6 +56,7 @@ public class DeliveryServiceTest {
   @Test
   public void shouldReturnExistingDriverWhenOrderAlreadyScheduled() {
     dana.addAction(Action.makePickup(ORDER_ID));
+    when(driverRepository.claimOrder(ORDER_ID)).thenReturn(0);
     when(driverRepository.findByOrderId(ORDER_ID)).thenReturn(Arrays.asList(dana));
 
     assertSame(dana, deliveryService.schedule(ORDER_ID, READY_BY));

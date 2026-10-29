@@ -59,4 +59,12 @@ public class DeliveryServiceClientTest {
     assertThat(actions).extracting(DeliveryAction::getType).containsExactly("PICKUP", "DROPOFF");
     assertThat(actions.get(1).getTime()).isEqualTo(LocalDateTime.of(2026, 10, 29, 12, 30));
   }
+
+  @Test
+  public void unknownDriverHasNoActions() {
+    server.expect(requestTo("http://delivery-service:8083/drivers/3"))
+            .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withStatus(org.springframework.http.HttpStatus.NOT_FOUND));
+
+    assertThat(client.actionsFor(3L, 42L)).isEmpty();
+  }
 }

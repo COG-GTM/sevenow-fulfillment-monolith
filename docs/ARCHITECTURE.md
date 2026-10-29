@@ -176,7 +176,7 @@ their schemas.
 | Service | Path / package | Port | Schema | Owns | Migrations |
 |---|---|---|---|---|---|
 | inventory-service | `services/inventory-service`, `com.sevenow.inventory` | 8082 | `sevenow_inventory` | `stores`, `store_products`, `reservations`, `reservation_items` | `V1` stores/products (V1+V2 monolith shapes), `V2` store `#38114` + 18 products, `V3` reservations |
-| delivery-service | `services/delivery-service`, `com.sevenow.delivery` | 8083 | `sevenow_delivery` | `drivers`, `driver_actions` | `V1` drivers/driver_actions (`order_id` plain bigint), `V2` drivers 1 and 2 |
+| delivery-service | `services/delivery-service`, `com.sevenow.delivery` | 8083 | `sevenow_delivery` | `drivers`, `driver_actions`, `delivery_assignments` | `V1` drivers/driver_actions (`order_id` plain bigint), `V2` drivers 1 and 2, `V3` delivery_assignments (one row per order, PK `order_id`) |
 
 Build / migrate one service on its own: `./build-and-test-service.sh inventory-service` (starts MySQL, runs
 `:<service>:flywayMigrate`, `build`, `integrationTest` against the real schema, then builds its image).
@@ -217,7 +217,9 @@ is an optimistic lock guarding concurrent releases.
 
 Scheduling (`DeliveryService.schedule`, moved from `OrderService.scheduleDelivery`): picks a random driver from
 `DriverRepository.findAllAvailable()`, appends `PICKUP` (no time) and `DROPOFF` at `readyBy + 30 min`, both carrying
-`orderId`. Idempotent per `orderId`: if the order already has actions, the existing driver is returned unchanged.
+`orderId`. Idempotent per `orderId`, including concurrent retries: the first statement of the transaction is
+`insert ignore into delivery_assignments (order_id)` (primary key = `order_id`), so a second call for the same order blocks
+until the first commits and then returns the already-assigned driver.
 `deliveryAddress` is echoed back but not persisted (`driver_actions` has no address columns).
 
 ### Monolith side
@@ -229,10 +231,15 @@ Scheduling (`DeliveryService.schedule`, moved from `OrderService.scheduleDeliver
   `sevenow-flyway` `V4` drops the `orders_assigned_driver_id` FK.
 - `OrderService.accept` delegates to a `DeliveryScheduler`. `OrderConfiguration` picks `DeliveryServiceClient`
   (RestTemplate → `POST {url}/deliveries` with an `OrderAccepted` payload, and `GET {url}/drivers/{id}` for
-  `GET /orders/{id}` `driverActions`) when `sevenow.delivery-service.url` is set (docker-compose sets
+  `GET /orders/{id}` `driverActions`; connect/read timeouts `sevenow.delivery-service.connect-timeout-ms`=2000 /
+  `read-timeout-ms`=5000) when `sevenow.delivery-service.url` is set (docker-compose sets
   `SEVENOW_DELIVERY_SERVICE_URL=http://delivery-service:8083`), else `LocalDeliveryScheduler` (the old in-process
   behaviour, used by `SevenowApplicationTest`). The HTTP call runs inside the accept transaction; if that transaction
   rolls back after delivery-service committed, retrying the accept is safe because `POST /deliveries` is idempotent.
+- Existing databases: `V4` keeps `orders.assigned_driver_id` values, but `sevenow_delivery` only has seeded drivers 1/2.
+  Before pointing an existing deployment at delivery-service, copy `sevenow.drivers`/`driver_actions` into
+  `sevenow_delivery` with their ids (and a `delivery_assignments` row per order). Until then, `GET /orders/{id}` shows no
+  `driverActions` for an assignment delivery-service doesn't know (404 → empty), rather than failing.
 - In the compose deployment, drivers are created and made available on delivery-service (`:8083/drivers`); the
   monolith's own `/drivers` endpoints and `sevenow.drivers` table are only used in local mode.
 

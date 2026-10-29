@@ -50,4 +50,33 @@ public class DeliveryIntegrationTest {
     int actions = transactionTemplate.execute(s -> driverService.findDriverById(driverId).actionsForDelivery(orderId).size());
     assertEquals(2, actions);
   }
+
+  @Test
+  public void concurrentSchedulingOfOneOrderAssignsOneDriver() throws Exception {
+    for (int i = 0; i < 2; i++) {
+      Driver d = driverService.createDriver(new PersonName("Con", "Current" + i), new Address("1 Main St", null, "Irving", "TX", "75063"));
+      driverService.updateAvailability(d.getId(), true);
+    }
+    long orderId = 1_000_000_000L + System.nanoTime() % 1_000_000_000L;
+    LocalDateTime readyBy = LocalDateTime.of(2026, 10, 29, 12, 0);
+    java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(8);
+    java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+    java.util.List<java.util.concurrent.Future<Long>> results = new java.util.ArrayList<>();
+    for (int i = 0; i < 8; i++) {
+      results.add(executor.submit(() -> {
+        start.await();
+        return deliveryService.schedule(orderId, readyBy).getId();
+      }));
+    }
+    start.countDown();
+    java.util.Set<Long> driverIds = new java.util.HashSet<>();
+    for (java.util.concurrent.Future<Long> f : results) {
+      driverIds.add(f.get(30, java.util.concurrent.TimeUnit.SECONDS));
+    }
+    executor.shutdown();
+
+    assertEquals(1, driverIds.size());
+    long driverId = driverIds.iterator().next();
+    assertEquals(2, (int) transactionTemplate.execute(s -> driverService.findDriverById(driverId).actionsForDelivery(orderId).size()));
+  }
 }

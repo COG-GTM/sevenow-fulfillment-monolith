@@ -1,6 +1,8 @@
 package com.sevenow.fulfillment.orderservice.domain;
 
 import com.sevenow.fulfillment.domain.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -43,7 +45,16 @@ public class DeliveryServiceClient implements DeliveryScheduler {
   @Override
   @SuppressWarnings("unchecked")
   public List<DeliveryAction> actionsFor(long driverId, long orderId) {
-    Map<String, Object> driver = restTemplate.getForObject(baseUrl + "/drivers/{driverId}", Map.class, driverId);
+    Map<String, Object> driver;
+    try {
+      driver = restTemplate.getForObject(baseUrl + "/drivers/{driverId}", Map.class, driverId);
+    } catch (HttpClientErrorException e) {
+      if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+        // e.g. an order assigned to a monolith-local driver before delivery-service owned drivers
+        return Collections.emptyList();
+      }
+      throw e;
+    }
     Map<String, Object> plan = driver == null ? null : (Map<String, Object>) driver.get("plan");
     if (plan == null || plan.get("actions") == null) {
       return Collections.emptyList();
