@@ -1,3 +1,3 @@
 #! /bin/bash -e
 
-./gradlew :ftgo-end-to-end-tests:cleanTest :ftgo-end-to-end-tests:test
+./gradlew :sevenow-end-to-end-tests:cleanTest :sevenow-end-to-end-tests:test

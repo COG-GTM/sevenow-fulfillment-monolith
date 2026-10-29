@@ -1,0 +1,4 @@
+dependencies {
+    testCompile project(":sevenow-end-to-end-tests-common")
+
+}

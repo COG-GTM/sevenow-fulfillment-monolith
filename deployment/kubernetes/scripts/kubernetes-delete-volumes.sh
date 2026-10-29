@@ -1,3 +1,3 @@
 #! /bin/bash -e
 
-kubectl delete pvc ftgo-mysql-persistent-storage-ftgo-mysql-0
+kubectl delete pvc sevenow-mysql-persistent-storage-sevenow-mysql-0

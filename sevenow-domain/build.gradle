@@ -1,0 +1,4 @@
+dependencies {
+    compile project(":sevenow-common")
+    compile project(":sevenow-common-jpa")
+}
