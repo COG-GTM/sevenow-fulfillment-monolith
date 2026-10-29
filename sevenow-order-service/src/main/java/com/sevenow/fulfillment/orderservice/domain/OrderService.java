@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import com.sevenow.fulfillment.customerservice.domain.CustomerService;
 import com.sevenow.fulfillment.domain.*;
 import com.sevenow.fulfillment.orderservice.web.ProductIdAndQuantity;
+import com.sevenow.fulfillment.security.SevenowCaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,6 +100,7 @@ public class OrderService {
   @Transactional
   public Order cancel(Long orderId) {
     Order order = tryToFindOrder(orderId);
+    SevenowCaller.requireCustomer(order.getCustomerId());
 
     order.cancel();
 
@@ -108,12 +110,14 @@ public class OrderService {
   @Transactional
   public Order reviseOrder(long orderId, OrderRevision orderRevision) {
     Order order = tryToFindOrder(orderId);
+    SevenowCaller.requireCustomer(order.getCustomerId());
     order.revise(orderRevision);
     return order;
   }
 
   public void accept(long orderId, LocalDateTime readyBy) {
     Order order = tryToFindOrder(orderId);
+    requireStoreAssociate(order);
     order.acceptTicket(readyBy);
     scheduleDelivery(order, readyBy);
   }
@@ -132,6 +136,14 @@ public class OrderService {
   }
 
 
+  private void requireStoreAssociate(Order order) {
+    SevenowCaller.requireStoreAssociate(order.getStore().getId());
+  }
+
+  private void requireAssignedDriver(Order order) {
+    SevenowCaller.requireDriver(order.getAssignedDriver() == null ? null : order.getAssignedDriver().getId());
+  }
+
   private Order tryToFindOrder(Long orderId) {
     return orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
   }
@@ -139,30 +151,35 @@ public class OrderService {
   @Transactional
   public void notePicking(long orderId) {
     Order order = tryToFindOrder(orderId);
+    requireStoreAssociate(order);
     order.notePicking();
   }
 
   @Transactional
   public void notePacked(long orderId) {
     Order order = tryToFindOrder(orderId);
+    requireStoreAssociate(order);
     order.notePacked();
   }
 
   @Transactional
   public void noteReadyForPickup(long orderId) {
     Order order = tryToFindOrder(orderId);
+    requireStoreAssociate(order);
     order.noteReadyForPickup();
   }
 
   @Transactional
   public void notePickedUp(long orderId) {
     Order order = tryToFindOrder(orderId);
+    requireAssignedDriver(order);
     order.notePickedUp();
   }
 
   @Transactional
   public void noteDelivered(long orderId) {
     Order order = tryToFindOrder(orderId);
+    requireAssignedDriver(order);
     order.noteDelivered();
   }
 }

@@ -57,7 +57,8 @@ Docker-compose stack). `buildSrc` holds the `IntegrationTestsPlugin`, `WaitForMy
 | `sevenow-driver-service-api` | `…driverservice.api` | common | `CreateDriverRequest/Response`, `DriverAvailability` |
 | `sevenow-driver-service` | `…driverservice` | common-swagger, driver-service-api, domain | `DriverService`, `DriverController` |
 | `sevenow-order-service-api` | `…orderservice.api` | common | `CreateOrderRequest/Response`, `ReviseOrderRequest`, `OrderAcceptance`, `OrderDetails` |
-| `sevenow-order-service` | `…orderservice` | common-swagger, domain, customer-service-api, store-service-api, order-service-api, **customer-service** | `OrderService` (create + substitution rule, cancel, revise, accept + driver scheduling, state transitions), `OrderController`, `TicketController`, `GetOrderResponse` |
+| `sevenow-security` | `…security` | — | `SevenowSecurityConfiguration` (stateless JWT bearer auth; lifecycle POSTs require authentication), `SevenowCaller` (customer / store-associate / assigned-driver checks) |
+| `sevenow-order-service` | `…orderservice` | common-swagger, domain, security, customer-service-api, store-service-api, order-service-api, **customer-service** | `OrderService` (create + substitution rule, cancel, revise, accept + driver scheduling, state transitions, each authorized against the caller via `SevenowCaller`), `OrderController`, `TicketController`, `GetOrderResponse` |
 | `sevenow-application` | `…` | the four `*-service` modules | main class, `application.properties`, Dockerfile |
 
 ## 3. REST surface per module
