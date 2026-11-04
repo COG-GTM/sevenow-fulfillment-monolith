@@ -3,7 +3,7 @@ plugins {
 }
 
 flyway {
-    url = "jdbc:mysql://${System.getenv('DOCKER_HOST_IP') ?: 'localhost'}/sevenow?useSSL=true&requireSSL=true&verifyServerCertificate=false&enabledTLSProtocols=TLSv1.2"
+    url = System.getenv('FLYWAY_URL') ?: "jdbc:mysql://${System.getenv('DOCKER_HOST_IP') ?: 'localhost'}/sevenow?useSSL=true&requireSSL=true&verifyServerCertificate=false&enabledTLSProtocols=TLSv1.2"
     schemas = ['sevenow']
 }
 

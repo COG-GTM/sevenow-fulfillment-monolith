@@ -27,8 +27,8 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: sevenow-mysql
-          image: msapatterns/mysql:latest
-          imagePullPolicy: Always
+          image: mysql:5.7
+          imagePullPolicy: IfNotPresent
           args:
               - "--ignore-db-dir=lost+found"
           ports:
@@ -64,6 +64,13 @@ spec:
           volumeMounts:
             - name: sevenow-mysql-persistent-storage
               mountPath: /var/lib/mysql
+            - name: sevenow-mysql-init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: sevenow-mysql-init
+          configMap:
+            name: sevenow-mysql-init
   volumeClaimTemplates:
   - metadata:
       name: sevenow-mysql-persistent-storage
