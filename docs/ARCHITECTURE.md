@@ -11,7 +11,7 @@ owns which table**, the cross-module seams, and the order state machine.
 | | |
 |---|---|
 | Runtime | one Spring Boot 2.0.3 application, `com.sevenow.fulfillment.SevenowApplicationMain` (module `sevenow-application`), Java 8, port 8080 in-container / 8081 on the host |
-| Database | one MySQL 5.7 schema `sevenow` (user `mysqluser`), migrated by Flyway from `sevenow-flyway/src/main/resources/db/migration` |
+| Database | one MySQL 5.7 schema `sevenow` (TLS-only; app user DML-only, Flyway user DDL; credentials from env, see README), migrated by Flyway from `sevenow-flyway/src/main/resources/db/migration` |
 | Persistence | Spring Data JPA / Hibernate 5.2, `spring.jpa.generate-ddl=false` (schema is Flyway-owned) |
 | Wiring | `SevenowApplicationMain` `@Import`s `CustomerServiceConfiguration`, `OrderServiceConfiguration`, `StoreServiceConfiguration`; `DriverServiceConfiguration` is picked up by `@ComponentScan` |
 | API docs | Springfox Swagger 2 (`common-swagger`), one Docket scanning `com.sevenow.fulfillment` → `/swagger-ui.html` |

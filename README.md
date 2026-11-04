@@ -56,7 +56,30 @@ export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64   # or equivalent
 
 * Application: http://localhost:8081
 * Swagger UI: http://localhost:8081/swagger-ui.html
-* MySQL: `localhost:3306`, schema `sevenow`, user `mysqluser` / `mysqlpw` (root: `rootpassword`)
+* MySQL: `127.0.0.1:3306` (TLS required), schema `sevenow`
+
+MySQL credentials are not committed. `. ./set-env.sh` (sourced by the scripts above) generates random passwords
+into a git-ignored `.env` on first use; values already exported in the environment (e.g. from a CI secret store)
+take precedence. `docker compose`, the app and the Gradle tasks fail fast when they are missing.
+
+| Variable | Used by | Privileges |
+|---|---|---|
+| `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | app, `waitForMySql` | `SELECT, INSERT, UPDATE, DELETE` on `sevenow.*` |
+| `FLYWAY_USER` / `FLYWAY_PASSWORD` | `:sevenow-flyway:flywayMigrate` | DDL + DML on `sevenow.*` |
+| `MYSQL_ROOT_PASSWORD` | `./mysql-cli.sh` | root, `localhost` inside the container only |
+
+Both accounts are created `REQUIRE SSL` by `mysql/init-sevenow.sh`; set `SEVENOW_DB_ALLOWED_HOST` on the
+`mysql` service to restrict them to a host pattern. The default JDBC URLs use
+`useSSL=true&requireSSL=true` with the container's self-signed certificate (`verifyServerCertificate=false`);
+outside local Docker, override `SPRING_DATASOURCE_URL` and `FLYWAY_URL` with `verifyServerCertificate=true` and a
+`trustCertificateKeyStoreUrl`. Port 3306 is published on `127.0.0.1` only (`MYSQL_PUBLISH_ADDRESS` overrides it;
+with a remote `DOCKER_HOST`, export it explicitly or tunnel 3306 — `set-env.sh` warns when it is unset).
+
+On Kubernetes, `kubernetes-deploy-all.sh` creates `sevenow-db-secret` (random values unless exported) and mounts
+`mysql/init-sevenow.sh` into the stock `mysql:5.7` StatefulSet. The init script only runs on an empty volume, so the
+secret lives as long as the volume: `kubernetes-delete-all.sh` keeps both, and `kubernetes-delete-volumes.sh` deletes
+the PVC together with `sevenow-db-secret` (new credentials on the next deploy). Run it once to drop a database
+created with the old accounts.
 
 Flyway (`sevenow-flyway`) runs `V1` (original FTGO schema), `V2__rebrand_7now.sql` (rename + new columns) and
 `V3__seed_7now_data.sql` (store #38114 in Irving, TX with 18 products across cold drinks, snacks, pizza and hot

@@ -1,4 +1,5 @@
 import org.gradle.api.DefaultTask;
+import org.gradle.api.GradleException;
 import org.gradle.api.tasks.TaskAction;
 
 import java.sql.Connection;
@@ -24,6 +25,13 @@ public class WaitForMySql extends DefaultTask {
   private String getenv(String name, Supplier<String> defaultValue) {
     return Optional.ofNullable(System.getenv(name)).orElseGet(defaultValue);
   }
+  private String requireEnv(String name) {
+    String value = System.getenv(name);
+    if (value == null || value.isEmpty()) {
+      throw new GradleException(name + " is not set; run '. ./set-env.sh' first");
+    }
+    return value;
+  }
 
   private void loadDriver() {
     try {
@@ -41,14 +49,14 @@ public class WaitForMySql extends DefaultTask {
   }
 
   private void waitForConnection() {
+    String datasourceUrl = getenv("SPRING_DATASOURCE_URL", () -> String.format("jdbc:mysql://%s/sevenow?useSSL=true&requireSSL=true&verifyServerCertificate=false&enabledTLSProtocols=TLSv1.2", getenv("DOCKER_HOST_IP", "localhost")));
+    String datasourceUsername = requireEnv("SPRING_DATASOURCE_USERNAME");
+    String datasourcePassword = requireEnv("SPRING_DATASOURCE_PASSWORD");
+
     while (true) {
       Connection connection = null;
       try {
         System.out.println("Trying to connect...");
-
-        String datasourceUrl = getenv("SPRING_DATASOURCE_URL", () -> String.format("jdbc:mysql://%s/sevenow?useSSL=false", getenv("DOCKER_HOST_IP", "localhost")));
-        String datasourceUsername = getenv("SPRING_DATASOURCE_USERNAME", "mysqluser");
-        String datasourcePassword = getenv("SPRING_DATASOURCE_PASSWORD", "mysqlpw");
 
         connection = DriverManager.getConnection(datasourceUrl, datasourceUsername, datasourcePassword);
 
@@ -56,7 +64,7 @@ public class WaitForMySql extends DefaultTask {
 
         break;
       } catch (SQLException e) {
-        System.out.println("Connection failed");
+        System.out.println("Connection failed: " + e.getMessage());
 
         sleep();
       } finally {

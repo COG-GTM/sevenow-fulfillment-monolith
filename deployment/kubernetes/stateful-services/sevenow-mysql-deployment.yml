@@ -27,22 +27,50 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: sevenow-mysql
-          image: msapatterns/mysql:latest
-          imagePullPolicy: Always
+          image: mysql:5.7
+          imagePullPolicy: IfNotPresent
           args:
               - "--ignore-db-dir=lost+found"
           ports:
               - containerPort: 3306
           env:
             - name: MYSQL_ROOT_PASSWORD
-              value: rootpassword
-            - name: MYSQL_USER
-              value: mysqluser
-            - name: MYSQL_PASSWORD
-              value: mysqlpw
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: root-password
+            - name: MYSQL_ROOT_HOST
+              value: localhost
+            - name: SEVENOW_APP_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: username
+            - name: SEVENOW_APP_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: password
+            - name: SEVENOW_MIGRATOR_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: migrator-username
+            - name: SEVENOW_MIGRATOR_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: migrator-password
           volumeMounts:
             - name: sevenow-mysql-persistent-storage
               mountPath: /var/lib/mysql
+            - name: sevenow-mysql-init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: sevenow-mysql-init
+          configMap:
+            name: sevenow-mysql-init
   volumeClaimTemplates:
   - metadata:
       name: sevenow-mysql-persistent-storage
