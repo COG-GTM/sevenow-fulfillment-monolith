@@ -1,2 +1,2 @@
 FROM mysql:5.7
-COPY schema.sql /docker-entrypoint-initdb.d/schema.sql
+COPY init-sevenow.sh /docker-entrypoint-initdb.d/init-sevenow.sh

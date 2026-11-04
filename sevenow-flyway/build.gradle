@@ -3,8 +3,21 @@ plugins {
 }
 
 flyway {
-    url = "jdbc:mysql://${System.getenv('DOCKER_HOST_IP') ?: 'localhost'}/sevenow?useSSL=false"
-    user = 'root'
-    password = 'rootpassword'
+    url = "jdbc:mysql://${System.getenv('DOCKER_HOST_IP') ?: 'localhost'}/sevenow?useSSL=true&requireSSL=true&verifyServerCertificate=false&enabledTLSProtocols=TLSv1.2"
     schemas = ['sevenow']
+}
+
+def requireEnv = { String name ->
+    def value = System.getenv(name)
+    if (!value) {
+        throw new GradleException("${name} is not set; run '. ./set-env.sh' first")
+    }
+    value
+}
+
+tasks.matching { it.name.startsWith('flyway') }.all { task ->
+    task.doFirst {
+        task.user = requireEnv('FLYWAY_USER')
+        task.password = requireEnv('FLYWAY_PASSWORD')
+    }
 }

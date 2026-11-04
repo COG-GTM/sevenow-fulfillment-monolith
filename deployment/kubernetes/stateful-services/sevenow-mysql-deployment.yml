@@ -35,11 +35,32 @@ spec:
               - containerPort: 3306
           env:
             - name: MYSQL_ROOT_PASSWORD
-              value: rootpassword
-            - name: MYSQL_USER
-              value: mysqluser
-            - name: MYSQL_PASSWORD
-              value: mysqlpw
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: root-password
+            - name: MYSQL_ROOT_HOST
+              value: localhost
+            - name: SEVENOW_APP_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: username
+            - name: SEVENOW_APP_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: password
+            - name: SEVENOW_MIGRATOR_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: migrator-username
+            - name: SEVENOW_MIGRATOR_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sevenow-db-secret
+                  key: migrator-password
           volumeMounts:
             - name: sevenow-mysql-persistent-storage
               mountPath: /var/lib/mysql

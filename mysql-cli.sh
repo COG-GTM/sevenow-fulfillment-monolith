@@ -1,7 +1,7 @@
 #! /bin/bash -e
 
-docker run $* \
-   --name mysqlterm --rm \
-   -e MYSQL_PORT_3306_TCP_ADDR=$DOCKER_HOST_IP -e MYSQL_PORT_3306_TCP_PORT=3306 -e MYSQL_ENV_MYSQL_ROOT_PASSWORD=rootpassword \
-   mysql:5.7.13  \
-   sh -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD" '
+TTY_FLAG=
+[ -t 0 ] || TTY_FLAG=-T
+
+docker compose exec $TTY_FLAG mysql \
+   sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot sevenow'
