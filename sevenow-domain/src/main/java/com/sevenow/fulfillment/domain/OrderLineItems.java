@@ -44,7 +44,7 @@ public class OrderLineItems {
 
   /**
    * Rejects a revision that names a product not in the order, sets a quantity below 1,
-   * or would order more of a product than the store has on hand.
+   * or increases a product's quantity beyond what the store has on hand.
    */
   void validateRevision(OrderRevision orderRevision, Store store) {
     Map<String, Integer> revisedQuantities = orderRevision.getRevisedLineItemQuantities();
@@ -54,18 +54,23 @@ public class OrderLineItems {
       }
       OrderLineItem.requireValidQuantity(quantity);
     });
-    Map<String, Integer> quantities = new LinkedHashMap<>();
-    lineItems.forEach(li -> quantities.merge(li.getProductId(), revisedQuantity(li, revisedQuantities), Integer::sum));
-    requireStock(quantities, store);
+    Map<String, Long> currentQuantities = new LinkedHashMap<>();
+    Map<String, Long> newQuantities = new LinkedHashMap<>();
+    lineItems.forEach(li -> {
+      currentQuantities.merge(li.getProductId(), (long) li.getQuantity(), Long::sum);
+      newQuantities.merge(li.getProductId(), (long) revisedQuantity(li, revisedQuantities), Long::sum);
+    });
+    newQuantities.keySet().removeIf(productId -> newQuantities.get(productId) <= currentQuantities.get(productId));
+    requireStock(newQuantities, store);
   }
 
   void validateStock(Store store) {
-    Map<String, Integer> quantities = new LinkedHashMap<>();
-    lineItems.forEach(li -> quantities.merge(li.getProductId(), li.getQuantity(), Integer::sum));
+    Map<String, Long> quantities = new LinkedHashMap<>();
+    lineItems.forEach(li -> quantities.merge(li.getProductId(), (long) OrderLineItem.requireValidQuantity(li.getQuantity()), Long::sum));
     requireStock(quantities, store);
   }
 
-  private static void requireStock(Map<String, Integer> quantitiesByProductId, Store store) {
+  private static void requireStock(Map<String, Long> quantitiesByProductId, Store store) {
     List<String> insufficient = quantitiesByProductId.entrySet().stream()
             .filter(e -> e.getValue() > store.findProduct(e.getKey()).map(Product::getOnHandQuantity).orElse(0))
             .map(Map.Entry::getKey)

@@ -7,6 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -159,6 +160,43 @@ public class OrderTest {
   @Test(expected = InsufficientStockException.class)
   public void shouldRejectOrderAboveOnHandStock() {
     new Order(CUSTOMER_ID, SEVEN_ELEVEN_STORE, slurpees(CHERRY_SLURPEE_PRODUCT.getOnHandQuantity() + 1));
+  }
+
+  @Test(expected = InsufficientStockException.class)
+  public void shouldRejectSplitLineItemsWhoseQuantitiesOverflowInt() {
+    int half = 1 << 30;
+    new Order(CUSTOMER_ID, SEVEN_ELEVEN_STORE, Arrays.asList(
+            new OrderLineItem(CHERRY_SLURPEE_ID, CHERRY_SLURPEE, CHERRY_SLURPEE_PRICE, half),
+            new OrderLineItem(CHERRY_SLURPEE_ID, CHERRY_SLURPEE, CHERRY_SLURPEE_PRICE, half)));
+  }
+
+  @Test(expected = InvalidOrderLineItemsException.class)
+  public void shouldRejectLineItemWhoseQuantityWasNeverSet() {
+    OrderLineItem lineItem = new OrderLineItem();
+    lineItem.setProductId(CHERRY_SLURPEE_ID);
+    lineItem.setName(CHERRY_SLURPEE);
+    lineItem.setPrice(CHERRY_SLURPEE_PRICE);
+    new Order(CUSTOMER_ID, SEVEN_ELEVEN_STORE, Collections.singletonList(lineItem));
+  }
+
+  @Test
+  public void shouldAllowRevisionsThatDoNotIncreaseQuantityAfterStockDrops() {
+    Product slurpee = new Product(CHERRY_SLURPEE_ID, CHERRY_SLURPEE, CHERRY_SLURPEE_PRICE, 40);
+    Store store = new Store(STORE_ID, STORE_NUMBER, STORE_NAME, new StoreCatalog(Collections.singletonList(slurpee)));
+    Order existing = new Order(CUSTOMER_ID, store, slurpees(5));
+    slurpee.setOnHandQuantity(0);
+
+    existing.revise(new OrderRevision(Optional.empty(), Collections.emptyMap()));
+    existing.revise(revision(CHERRY_SLURPEE_ID, 5));
+    existing.revise(revision(CHERRY_SLURPEE_ID, 3));
+    assertEquals(3, existing.getLineItems().get(0).getQuantity());
+
+    try {
+      existing.revise(revision(CHERRY_SLURPEE_ID, 4));
+      fail("expected InsufficientStockException");
+    } catch (InsufficientStockException e) {
+      // expected
+    }
   }
 
   private static List<OrderLineItem> slurpees(int quantity) {
