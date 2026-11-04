@@ -1,7 +1,6 @@
 package com.sevenow.fulfillment.orderservice.web;
 
 import com.sevenow.fulfillment.domain.Order;
-import com.sevenow.fulfillment.domain.OrderRepository;
 import com.sevenow.fulfillment.domain.OrderRevision;
 import com.sevenow.fulfillment.orderservice.api.web.CreateOrderRequest;
 import com.sevenow.fulfillment.orderservice.api.web.CreateOrderResponse;
@@ -29,12 +28,8 @@ public class OrderController {
 
   private OrderService orderService;
 
-  private OrderRepository orderRepository;
-
-
-  public OrderController(OrderService orderService, OrderRepository orderRepository) {
+  public OrderController(OrderService orderService) {
     this.orderService = orderService;
-    this.orderRepository = orderRepository;
   }
 
   @RequestMapping(method = RequestMethod.POST)
@@ -49,13 +44,13 @@ public class OrderController {
 
   @RequestMapping(path = "/{orderId}", method = RequestMethod.GET)
   public ResponseEntity<GetOrderResponse> getOrder(@PathVariable long orderId) {
-    Optional<Order> order = orderRepository.findById(orderId);
+    Optional<Order> order = orderService.findOrderForCaller(orderId);
     return order.map(o -> new ResponseEntity<>(makeGetOrderResponse(o), HttpStatus.OK)).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
   }
 
   @RequestMapping(method = RequestMethod.GET)
-  public ResponseEntity<List<GetOrderResponse>> getOrders(@RequestParam long customerId) {
-    List<GetOrderResponse> orders = orderRepository.findAllByCustomerId(customerId)
+  public ResponseEntity<List<GetOrderResponse>> getOrders(@RequestParam(required = false) Long customerId) {
+    List<GetOrderResponse> orders = orderService.findOrdersForCaller(customerId)
             .stream()
             .map(this::makeGetOrderResponse)
             .collect(Collectors.toList());

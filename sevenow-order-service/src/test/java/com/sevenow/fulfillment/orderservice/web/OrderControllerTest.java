@@ -2,7 +2,6 @@ package com.sevenow.fulfillment.orderservice.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sevenow.fulfillment.common.MoneyModule;
-import com.sevenow.fulfillment.domain.OrderRepository;
 import com.sevenow.fulfillment.orderservice.OrderDetailsMother;
 import com.sevenow.fulfillment.orderservice.domain.OrderService;
 import org.junit.Before;
@@ -23,21 +22,19 @@ import static org.mockito.Mockito.when;
 public class OrderControllerTest {
 
   private OrderService orderService;
-  private OrderRepository orderRepository;
   private OrderController orderController;
 
   @Before
   public void setUp() throws Exception {
     orderService = mock(OrderService.class);
-    orderRepository = mock(OrderRepository.class);
-    orderController = new OrderController(orderService, orderRepository);
+    orderController = new OrderController(orderService);
   }
 
 
   @Test
   public void shouldFindOrder() {
 
-    when(orderRepository.findById(1L)).thenReturn(Optional.of(SLURPEE_ORDER));
+    when(orderService.findOrderForCaller(1L)).thenReturn(Optional.of(SLURPEE_ORDER));
 
     given().
             standaloneSetup(configureControllers(orderController)).
@@ -53,10 +50,10 @@ public class OrderControllerTest {
 
   @Test
   public void shouldFindNotOrder() {
-    when(orderRepository.findById(1L)).thenReturn(Optional.empty());
+    when(orderService.findOrderForCaller(1L)).thenReturn(Optional.empty());
 
     given().
-            standaloneSetup(configureControllers(new OrderController(orderService, orderRepository))).
+            standaloneSetup(configureControllers(orderController)).
     when().
             get("/orders/1").
     then().

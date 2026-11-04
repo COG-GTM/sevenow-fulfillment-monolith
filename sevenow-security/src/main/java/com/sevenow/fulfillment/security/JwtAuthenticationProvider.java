@@ -20,7 +20,7 @@ import java.util.Date;
 /**
  * Authenticates HS256 bearer tokens issued by the 7NOW identity provider / API gateway.
  * Required claims: {@code sub}, {@code exp}, {@code role} (a {@link SevenowRole}) and the role's id claim
- * ({@code customerId}, {@code storeId} or {@code driverId}).
+ * ({@code customerId}, {@code storeId} or {@code driverId}); {@code STORE_ADMIN} has no id claim.
  */
 public class JwtAuthenticationProvider implements AuthenticationProvider {
 
@@ -68,6 +68,9 @@ public class JwtAuthenticationProvider implements AuthenticationProvider {
         throw new BadCredentialsException("Token missing sub or role");
       }
       SevenowRole role = SevenowRole.valueOf(roleName);
+      if (role.getIdClaim() == null) {
+        return new SevenowPrincipal(subject, role, 0);
+      }
       Long id = claims.getLongClaim(role.getIdClaim());
       if (id == null) {
         throw new BadCredentialsException("Token missing " + role.getIdClaim());

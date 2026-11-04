@@ -6,6 +6,7 @@ import com.sevenow.fulfillment.domain.StoreCatalog;
 import com.sevenow.fulfillment.domain.StoreRepository;
 import com.sevenow.fulfillment.storeservice.events.CreateStoreRequest;
 import com.sevenow.fulfillment.storeservice.events.StoreCatalogDTO;
+import com.sevenow.fulfillment.security.SevenowCaller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ public class StoreService {
   private StoreRepository storeRepository;
 
   public Store create(CreateStoreRequest request) {
+    SevenowCaller.requireStoreAdmin();
     Store store = new Store(request.getStoreNumber(), request.getName(), request.getAddress(), makeStoreCatalog(request.getCatalog()));
     storeRepository.save(store);
     return store;

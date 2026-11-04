@@ -22,7 +22,7 @@ public class CustomerController {
 
   @RequestMapping(method= RequestMethod.GET,  path="/{customerId}")
   public ResponseEntity<GetCustomerResponse> get(@PathVariable long customerId) {
-    return customerService.findById(customerId)
+    return customerService.findCustomerForCaller(customerId)
             .map(customer -> new ResponseEntity<>(new GetCustomerResponse(customer.getName()), HttpStatus.OK))
             .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
   }

@@ -54,6 +54,7 @@ public class OrderServiceTest {
 
   @Test
   public void shouldCreateOrderForInStockProduct() {
+    actAs(SevenowRole.CUSTOMER, CUSTOMER_ID);
     Order order = orderService.createOrder(CUSTOMER_ID, STORE_ID,
             Collections.singletonList(new ProductIdAndQuantity(CHERRY_SLURPEE_ID, 3)));
 
@@ -69,6 +70,7 @@ public class OrderServiceTest {
 
   @Test
   public void shouldSubstituteOutOfStockProductWithConfiguredSubstitute() {
+    actAs(SevenowRole.CUSTOMER, CUSTOMER_ID);
     Order order = orderService.createOrder(CUSTOMER_ID, STORE_ID,
             Collections.singletonList(new ProductIdAndQuantity(PEPPERONI_PIZZA_ID, 2)));
 
@@ -82,6 +84,7 @@ public class OrderServiceTest {
 
   @Test
   public void shouldRejectOutOfStockProductWithoutSubstitute() {
+    actAs(SevenowRole.CUSTOMER, CUSTOMER_ID);
     try {
       orderService.createOrder(CUSTOMER_ID, STORE_ID, Arrays.asList(
               new ProductIdAndQuantity(CHERRY_SLURPEE_ID, 1),
@@ -95,6 +98,7 @@ public class OrderServiceTest {
 
   @Test(expected = InvalidProductIdException.class)
   public void shouldRejectUnknownProduct() {
+    actAs(SevenowRole.CUSTOMER, CUSTOMER_ID);
     orderService.createOrder(CUSTOMER_ID, STORE_ID,
             Collections.singletonList(new ProductIdAndQuantity("NOT-A-PRODUCT", 1)));
   }
@@ -189,6 +193,73 @@ public class OrderServiceTest {
 
     assertThatThrownBy(() -> orderService.notePickedUp(ORDER_ID)).isInstanceOf(AccessDeniedException.class);
     assertThat(order.getOrderState()).isEqualTo(OrderState.READY_FOR_PICKUP);
+  }
+
+  @Test
+  public void shouldRejectOrderPlacedForAnotherCustomer() {
+    actAs(SevenowRole.CUSTOMER, CUSTOMER_ID + 1);
+
+    assertThatThrownBy(() -> orderService.createOrder(CUSTOMER_ID, STORE_ID,
+            Collections.singletonList(new ProductIdAndQuantity(CHERRY_SLURPEE_ID, 1))))
+            .isInstanceOf(AccessDeniedException.class);
+    verify(orderRepository, never()).save(any());
+  }
+
+  @Test
+  public void shouldRejectUnauthenticatedOrderCreation() {
+    assertThatThrownBy(() -> orderService.createOrder(CUSTOMER_ID, STORE_ID,
+            Collections.singletonList(new ProductIdAndQuantity(CHERRY_SLURPEE_ID, 1))))
+            .isInstanceOf(AuthenticationCredentialsNotFoundException.class);
+    verify(orderRepository, never()).save(any());
+  }
+
+  @Test
+  public void shouldShowOrderOnlyToItsCustomerStoreAndAssignedDriver() {
+    Order order = givenOrderReadyForPickupAssignedTo(DRIVER_ID);
+
+    actAs(SevenowRole.CUSTOMER, CUSTOMER_ID);
+    assertThat(orderService.findOrderForCaller(ORDER_ID)).contains(order);
+    actAs(SevenowRole.STORE_ASSOCIATE, STORE_ID);
+    assertThat(orderService.findOrderForCaller(ORDER_ID)).contains(order);
+    actAs(SevenowRole.DRIVER, DRIVER_ID);
+    assertThat(orderService.findOrderForCaller(ORDER_ID)).contains(order);
+
+    actAs(SevenowRole.CUSTOMER, CUSTOMER_ID + 1);
+    assertThat(orderService.findOrderForCaller(ORDER_ID)).isEmpty();
+    actAs(SevenowRole.STORE_ASSOCIATE, STORE_ID + 1);
+    assertThat(orderService.findOrderForCaller(ORDER_ID)).isEmpty();
+    actAs(SevenowRole.DRIVER, DRIVER_ID + 1);
+    assertThat(orderService.findOrderForCaller(ORDER_ID)).isEmpty();
+    actAs(SevenowRole.STORE_ADMIN, 0);
+    assertThat(orderService.findOrderForCaller(ORDER_ID)).isEmpty();
+  }
+
+  @Test
+  public void shouldRequireAuthenticationToReadOrder() {
+    givenOrder();
+    assertThatThrownBy(() -> orderService.findOrderForCaller(ORDER_ID))
+            .isInstanceOf(AuthenticationCredentialsNotFoundException.class);
+  }
+
+  @Test
+  public void shouldListOnlyTheCallingCustomersOrders() {
+    Order order = givenOrder();
+    when(orderRepository.findAllByCustomerId(CUSTOMER_ID)).thenReturn(Collections.singletonList(order));
+    actAs(SevenowRole.CUSTOMER, CUSTOMER_ID);
+
+    assertThat(orderService.findOrdersForCaller(null)).containsExactly(order);
+    assertThat(orderService.findOrdersForCaller(CUSTOMER_ID)).containsExactly(order);
+    assertThatThrownBy(() -> orderService.findOrdersForCaller(CUSTOMER_ID + 1))
+            .isInstanceOf(AccessDeniedException.class);
+    verify(orderRepository, never()).findAllByCustomerId(CUSTOMER_ID + 1);
+  }
+
+  @Test
+  public void shouldRejectOrderListingByNonCustomer() {
+    actAs(SevenowRole.STORE_ASSOCIATE, STORE_ID);
+    assertThatThrownBy(() -> orderService.findOrdersForCaller(CUSTOMER_ID))
+            .isInstanceOf(AccessDeniedException.class);
+    verify(orderRepository, never()).findAllByCustomerId(anyLong());
   }
 
   private Order givenOrder() {

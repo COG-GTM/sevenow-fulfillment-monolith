@@ -4,6 +4,7 @@ import com.sevenow.fulfillment.common.Money;
 import com.sevenow.fulfillment.common.PersonName;
 import com.sevenow.fulfillment.domain.Customer;
 import com.sevenow.fulfillment.domain.CustomerRepository;
+import com.sevenow.fulfillment.security.SevenowCaller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +26,11 @@ public class CustomerService {
     return customer;
   }
 
-  public Optional<Customer> findById(long customerId) {
+  /**
+   * The customer's profile, readable only by that customer.
+   */
+  public Optional<Customer> findCustomerForCaller(long customerId) {
+    SevenowCaller.requireCustomer(customerId);
     return customerRepository.findById(customerId);
   }
 }

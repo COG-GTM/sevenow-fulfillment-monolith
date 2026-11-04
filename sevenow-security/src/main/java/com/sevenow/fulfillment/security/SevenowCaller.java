@@ -33,6 +33,18 @@ public final class SevenowCaller {
     }
   }
 
+  public static SevenowPrincipal requireRole(SevenowRole role) {
+    SevenowPrincipal caller = current();
+    if (caller.getRole() != role) {
+      throw new AccessDeniedException("Caller does not have role " + role);
+    }
+    return caller;
+  }
+
+  public static void requireStoreAdmin() {
+    requireRole(SevenowRole.STORE_ADMIN);
+  }
+
   public static void requireDriver(Long driverId) {
     if (!current().isDriver(driverId)) {
       throw new AccessDeniedException("Caller is not the driver assigned to this order");

@@ -204,6 +204,7 @@ public abstract class AbstractEndToEndTests {
     verifyStoreCreated(storeId);
 
     Integer substitutedOrderId = given().
+            header("Authorization", bearer(TestTokens.customer(customerId))).
             body(new CreateOrderRequest(customerId, storeId, Collections.singletonList(new CreateOrderRequest.LineItem(PEPPERONI_PIZZA_ID, 2)))).
             contentType("application/json").
             when().
@@ -215,6 +216,7 @@ public abstract class AbstractEndToEndTests {
     assertNotNull(substitutedOrderId);
 
     given().
+            header("Authorization", bearer(TestTokens.customer(customerId))).
             when().
             get(orderBaseUrl(Integer.toString(substitutedOrderId))).
             then().
@@ -233,6 +235,7 @@ public abstract class AbstractEndToEndTests {
     verifyStoreCreated(storeId);
 
     given().
+            header("Authorization", bearer(TestTokens.customer(customerId))).
             body(new CreateOrderRequest(customerId, storeId, Arrays.asList(
                     new CreateOrderRequest.LineItem(CHERRY_SLURPEE_ID, 1),
                     new CreateOrderRequest.LineItem(CHICKEN_WINGS_ID, 1)))).
@@ -244,9 +247,86 @@ public abstract class AbstractEndToEndTests {
             body("rejectedProductIds", equalTo(Collections.singletonList(CHICKEN_WINGS_ID)));
   }
 
+  @Test
+  public void shouldRequireStoreAdminToCreateStore() {
+    customerId = createCustomer();
+    String body = "{\"storeNumber\":\"99999\",\"name\":\"Rogue store\"}";
+
+    given().body(body).contentType("application/json").
+            when().post(storeBaseUrl()).
+            then().statusCode(401);
+    given().header("Authorization", bearer(TestTokens.customer(customerId))).body(body).contentType("application/json").
+            when().post(storeBaseUrl()).
+            then().statusCode(403);
+    given().header("Authorization", bearer(TestTokens.storeAssociate(1))).body(body).contentType("application/json").
+            when().post(storeBaseUrl()).
+            then().statusCode(403);
+  }
+
+  @Test
+  public void shouldOnlyShowCustomerToThatCustomer() {
+    customerId = createCustomer();
+
+    given().
+            header("Authorization", bearer(TestTokens.customer(customerId))).
+            when().get(customerBaseUrl(Integer.toString(customerId))).
+            then().statusCode(200).body("name.firstName", equalTo("John"));
+    given().
+            when().get(customerBaseUrl(Integer.toString(customerId))).
+            then().statusCode(401);
+    given().
+            header("Authorization", bearer(TestTokens.customer(customerId + 1_000_000))).
+            when().get(customerBaseUrl(Integer.toString(customerId))).
+            then().statusCode(403);
+  }
+
+  @Test
+  public void shouldOnlyShowOrdersToTheirCustomer() {
+    createOrder();
+    String otherCustomer = bearer(TestTokens.customer(customerId + 1_000_000));
+
+    given().
+            when().get(orderBaseUrl(Integer.toString(orderId))).
+            then().statusCode(401);
+    given().
+            when().get(orderBaseUrl() + "?customerId=" + customerId).
+            then().statusCode(401);
+    given().
+            header("Authorization", otherCustomer).
+            when().get(orderBaseUrl(Integer.toString(orderId))).
+            then().statusCode(404);
+    given().
+            header("Authorization", otherCustomer).
+            when().get(orderBaseUrl() + "?customerId=" + customerId).
+            then().statusCode(403);
+    given().
+            header("Authorization", bearer(TestTokens.storeAssociate(storeId))).
+            when().get(orderBaseUrl(Integer.toString(orderId))).
+            then().statusCode(200);
+  }
+
+  @Test
+  public void shouldRejectOrderPlacedForAnotherCustomer() {
+    customerId = createCustomer();
+    storeId = createStore();
+    verifyStoreCreated(storeId);
+    CreateOrderRequest request = new CreateOrderRequest(customerId, storeId,
+            Collections.singletonList(new CreateOrderRequest.LineItem(CHERRY_SLURPEE_ID, 1)));
+
+    given().body(request).contentType("application/json").
+            when().post(orderBaseUrl()).
+            then().statusCode(401);
+    given().
+            header("Authorization", bearer(TestTokens.customer(customerId + 1_000_000))).
+            body(request).contentType("application/json").
+            when().post(orderBaseUrl()).
+            then().statusCode(403);
+  }
+
   private void verifyOrderState(int orderId, String expectedState) {
     Eventually.eventually(String.format("verifyOrderState %s %s", orderId, expectedState), () -> {
       String state = given().
+              header("Authorization", bearer(TestTokens.customer(customerId))).
               when().
               get(orderBaseUrl(Integer.toString(orderId))).
               then().
@@ -265,6 +345,7 @@ public abstract class AbstractEndToEndTests {
   private void verifyOrderRevised(int orderId) {
     Eventually.eventually(String.format("verifyOrderRevised state %s", orderId), () -> {
       String orderTotal = given().
+              header("Authorization", bearer(TestTokens.customer(customerId))).
               when().
               get(baseUrl(getApplicationPort(), "orders", Integer.toString(orderId))).
               then().
@@ -275,6 +356,7 @@ public abstract class AbstractEndToEndTests {
     });
     Eventually.eventually(String.format("verifyOrderRevised state %s", orderId), () -> {
       String state = given().
+              header("Authorization", bearer(TestTokens.customer(customerId))).
               when().
               get(orderBaseUrl(Integer.toString(orderId))).
               then().
@@ -320,6 +402,7 @@ public abstract class AbstractEndToEndTests {
   private void verifyOrderCancelled(int orderId) {
     Eventually.eventually(String.format("verifyOrderCancelled %s", orderId), () -> {
       String state = given().
+              header("Authorization", bearer(TestTokens.customer(customerId))).
               when().
               get(orderBaseUrl(Integer.toString(orderId))).
               then().
@@ -362,6 +445,7 @@ public abstract class AbstractEndToEndTests {
   private int createStore() {
     Integer storeId =
             given().
+                    header("Authorization", bearer(TestTokens.storeAdmin())).
                     body(new CreateStoreRequest(STORE_NUMBER, STORE_NAME,
                             STORE_ADDRESS,
                             new StoreCatalogDTO(Arrays.asList(
@@ -396,6 +480,7 @@ public abstract class AbstractEndToEndTests {
   private int createOrder(int customerId, int storeId) {
     Integer orderId =
             given().
+                    header("Authorization", bearer(TestTokens.customer(customerId))).
                     body(new CreateOrderRequest(customerId, storeId, Collections.singletonList(new CreateOrderRequest.LineItem(CHERRY_SLURPEE_ID, 5)))).
                     contentType("application/json").
                     when().
@@ -412,6 +497,7 @@ public abstract class AbstractEndToEndTests {
   private void verifyOrderAuthorized(int orderId) {
     Eventually.eventually(String.format("verifyOrderApproved %s", orderId), () -> {
       String state = given().
+              header("Authorization", bearer(TestTokens.customer(customerId))).
               when().
               get(orderBaseUrl(Integer.toString(orderId))).
               then().
@@ -425,6 +511,7 @@ public abstract class AbstractEndToEndTests {
   private void verifyOrderHistoryUpdated(int orderId, int customerId) {
     Eventually.eventually(String.format("verifyOrderHistoryUpdated %s", orderId), () -> {
       String state = given().
+              header("Authorization", bearer(TestTokens.customer(customerId))).
               when().
               get(orderBaseUrl() + "?customerId=" + customerId).
               then().
@@ -472,6 +559,7 @@ public abstract class AbstractEndToEndTests {
   private void assertOrderAssignedToDriver() {
     int driverId = Eventually.eventuallyReturning(() -> {
       int assignedDriver = given().
+              header("Authorization", bearer(TestTokens.customer(customerId))).
               when().
               get(orderBaseUrl(Long.toString(orderId))).
               then().
