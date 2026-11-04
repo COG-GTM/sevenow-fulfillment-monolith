@@ -106,7 +106,9 @@ Missing or invalid tokens get **401**; a valid token for the wrong customer, sto
 Example:
 
 ```bash
-curl -s -X POST localhost:8081/orders -H 'Content-Type: application/json' -d '{
+# CUSTOMER_TOKEN: HS256 JWT with {"sub": "...", "exp": ..., "role": "CUSTOMER", "customerId": 1}
+curl -s -X POST localhost:8081/orders -H "Authorization: Bearer $CUSTOMER_TOKEN" \
+  -H 'Content-Type: application/json' -d '{
   "customerId": 1, "storeId": 1,
   "lineItems": [{"productId": "SLURPEE-CHERRY-M", "quantity": 2}, {"productId": "PIZZA-PEPPERONI-WHOLE", "quantity": 1}]
 }'
