@@ -1,9 +1,12 @@
 package com.sevenow.fulfillment.orderservice.api.web;
 
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 import java.util.Map;
 
 public class ReviseOrderRequest {
-  private Map<String, Integer> revisedLineItemQuantities;
+  @NotNull
+  private Map<@NotNull String, @NotNull @Min(1) Integer> revisedLineItemQuantities;
 
   private ReviseOrderRequest() {
   }

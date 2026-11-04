@@ -33,7 +33,7 @@ public class OrderDetailsMother {
   public static final OrderState SLURPEE_ORDER_STATE = OrderState.APPROVED;
 
   private static Order makeSlurpeeOrder() {
-    Order order = new Order(CUSTOMER_ID, new Store(STORE_ID, STORE_NUMBER, STORE_NAME, new StoreCatalog(Collections.emptyList())), slurpeeLineItems());
+    Order order = new Order(CUSTOMER_ID, SEVEN_ELEVEN_STORE, slurpeeLineItems());
     order.setId(ORDER_ID);
     return order;
   }

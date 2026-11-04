@@ -43,7 +43,7 @@ public class Order {
 
   @Embedded
   @AttributeOverride(name="amount", column = @Column(name="order_minimum"))
-  private Money orderMinimum = new Money(Integer.MAX_VALUE);
+  private Money orderMinimum = Money.ZERO;
 
   private LocalDateTime readyBy;
   private LocalDateTime acceptTime;
@@ -60,9 +60,21 @@ public class Order {
   }
 
   public Order(long customerId, Store store, List<OrderLineItem> orderLineItems) {
+    this(customerId, store, orderLineItems, Money.ZERO);
+  }
+
+  public Order(long customerId, Store store, List<OrderLineItem> orderLineItems, Money orderMinimum) {
+    if (orderLineItems == null || orderLineItems.isEmpty()) {
+      throw new InvalidOrderLineItemsException("Order must contain at least one line item");
+    }
     this.customerId = customerId;
     this.store = store;
     this.orderLineItems = new OrderLineItems(orderLineItems);
+    this.orderLineItems.validateStock(store);
+    this.orderMinimum = orderMinimum;
+    if (!getOrderTotal().isGreaterThanOrEqual(orderMinimum)) {
+      throw new OrderMinimumNotMetException();
+    }
     this.orderState = APPROVED;
   }
 
@@ -91,26 +103,25 @@ public class Order {
   }
 
   public void revise(OrderRevision orderRevision) {
-    if (orderState == APPROVED) {
-      LineItemQuantityChange change = orderLineItems.lineItemQuantityChange(orderRevision);
-      if (change.newOrderTotal.isGreaterThanOrEqual(orderMinimum)) {
-        throw new OrderMinimumNotMetException();
-      }
-    } else {
+    if (orderState != APPROVED) {
       throw new UnsupportedStateTransitionException(orderState);
     }
 
+    orderLineItems.validateRevision(orderRevision, store);
+    LineItemQuantityChange change = orderLineItems.lineItemQuantityChange(orderRevision);
+    if (!change.newOrderTotal.isGreaterThanOrEqual(getOrderMinimum())) {
+      throw new OrderMinimumNotMetException();
+    }
+
     orderRevision.getDeliveryInformation().ifPresent(newDi -> this.deliveryInformation = newDi);
 
     if (!orderRevision.getRevisedLineItemQuantities().isEmpty()) {
       orderLineItems.updateLineItems(orderRevision);
     }
+  }
 
-    orderRevision.getDeliveryInformation().ifPresent(newDi -> this.deliveryInformation = newDi);
-    if (!orderRevision.getRevisedLineItemQuantities().isEmpty()) {
-      orderLineItems.updateLineItems(orderRevision);
-    }
-
+  public Money getOrderMinimum() {
+    return orderMinimum == null ? Money.ZERO : orderMinimum;
   }
 
 

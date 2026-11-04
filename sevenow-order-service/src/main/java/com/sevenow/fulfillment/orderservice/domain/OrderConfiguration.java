@@ -1,5 +1,6 @@
 package com.sevenow.fulfillment.orderservice.domain;
 
+import com.sevenow.fulfillment.common.Money;
 import io.micrometer.core.instrument.MeterRegistry;
 import com.sevenow.fulfillment.customerservice.domain.CustomerService;
 import com.sevenow.fulfillment.domain.DriverRepository;
@@ -22,11 +23,13 @@ public class OrderConfiguration {
   public OrderService orderService(StoreRepository storeRepository,
                                    OrderRepository orderRepository,
                                    Optional<MeterRegistry> meterRegistry,
-                                   CustomerService customerService, DriverRepository driverRepository) {
+                                   CustomerService customerService, DriverRepository driverRepository,
+                                   @Value("${sevenow.orders.minimum-total:0.00}") String orderMinimum) {
     return new OrderService(orderRepository,
             storeRepository,
             meterRegistry,
-            customerService, driverRepository);
+            customerService, driverRepository,
+            new Money(orderMinimum));
   }
 
   @Bean
