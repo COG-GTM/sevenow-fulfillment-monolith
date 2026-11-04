@@ -5,6 +5,9 @@ import com.sevenow.fulfillment.customerservice.domain.CustomerService;
 import com.sevenow.fulfillment.domain.*;
 import com.sevenow.fulfillment.orderservice.web.ProductIdAndQuantity;
 import com.sevenow.fulfillment.security.SevenowCaller;
+import com.sevenow.fulfillment.security.SevenowPrincipal;
+import com.sevenow.fulfillment.security.SevenowRole;
+import org.springframework.security.access.AccessDeniedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +50,7 @@ public class OrderService {
   @Transactional
   public Order createOrder(long customerId, long storeId,
                            List<ProductIdAndQuantity> lineItems) {
+    SevenowCaller.requireCustomer(customerId);
     Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreNotFoundException(storeId));
 
@@ -95,6 +99,34 @@ public class OrderService {
       throw new ProductOutOfStockException(rejected);
     }
     return result;
+  }
+
+  /**
+   * The order, if it exists and the caller is the customer who placed it, an associate of its store or its
+   * assigned driver.
+   */
+  @Transactional(readOnly = true)
+  public Optional<Order> findOrderForCaller(long orderId) {
+    SevenowPrincipal caller = SevenowCaller.current();
+    return orderRepository.findById(orderId).filter(order -> canView(caller, order));
+  }
+
+  /**
+   * The calling customer's orders. A {@code customerId} other than the caller's is rejected.
+   */
+  @Transactional(readOnly = true)
+  public List<Order> findOrdersForCaller(Long customerId) {
+    SevenowPrincipal caller = SevenowCaller.requireRole(SevenowRole.CUSTOMER);
+    if (customerId != null && customerId != caller.getId()) {
+      throw new AccessDeniedException("Caller may only list their own orders");
+    }
+    return orderRepository.findAllByCustomerId(caller.getId());
+  }
+
+  private boolean canView(SevenowPrincipal caller, Order order) {
+    return caller.isCustomer(order.getCustomerId())
+            || caller.isStoreAssociateOf(order.getStore().getId())
+            || (order.getAssignedDriver() != null && caller.isDriver(order.getAssignedDriver().getId()));
   }
 
   @Transactional

@@ -13,8 +13,9 @@ import org.springframework.security.web.authentication.AnonymousAuthenticationFi
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 /**
- * Stateless bearer-token security. Order lifecycle transitions require an authenticated caller; which caller may
- * perform each transition is enforced in OrderService.
+ * Stateless bearer-token security. All order endpoints and customer reads require an authenticated caller, and
+ * creating a store requires STORE_ADMIN. Which caller may act on which order or customer is enforced in OrderService
+ * and CustomerService.
  */
 @Configuration
 @EnableWebSecurity
@@ -47,6 +48,9 @@ public class SevenowSecurityConfiguration extends WebSecurityConfigurerAdapter {
             .addFilterBefore(new JwtAuthenticationFilter(jwtAuthenticationProvider()), AnonymousAuthenticationFilter.class)
             .authorizeRequests()
             .antMatchers(HttpMethod.POST, ORDER_LIFECYCLE_PATHS).authenticated()
+            .mvcMatchers("/orders", "/orders/**").authenticated()
+            .mvcMatchers(HttpMethod.GET, "/customers/**").authenticated()
+            .mvcMatchers(HttpMethod.POST, "/stores").hasRole(SevenowRole.STORE_ADMIN.name())
             .anyRequest().permitAll();
   }
 }

@@ -86,24 +86,29 @@ start at `on_hand_quantity = 0`, seed rows are `insert ignore`); see `docs/ARCHI
 
 ### Authentication and authorization
 
-Order lifecycle transitions require an `Authorization: Bearer <JWT>` header (HS256, signed with
+All `/orders` endpoints, `GET /customers/{customerId}` and `POST /stores` require an `Authorization: Bearer <JWT>` header (HS256, signed with
 `SEVENOW_AUTH_JWT_SECRET`, at least 32 bytes; the app refuses to start without it). Tokens are issued by the
-7NOW identity provider / API gateway and must carry `sub`, `exp`, `role` and the id claim for that role:
+7NOW identity provider / API gateway and must carry `sub`, `exp`, `role` and the id claim for that role (none for
+`STORE_ADMIN`):
 
 | `role` | id claim | May call |
 |---|---|---|
-| `CUSTOMER` | `customerId` | `/cancel`, `/revise` on orders it placed |
-| `STORE_ASSOCIATE` | `storeId` | `/accept`, `/picking`, `/packed`, `/ready` on orders for that store |
-| `DRIVER` | `driverId` | `/pickedup`, `/delivered` on orders assigned to that driver |
+| `CUSTOMER` | `customerId` | `POST /orders` for itself; `GET /orders` (its own history; `?customerId=` is optional and must match); `GET /orders/{orderId}`, `/cancel`, `/revise` on orders it placed; `GET /customers/{customerId}` for itself |
+| `STORE_ASSOCIATE` | `storeId` | `GET /orders/{orderId}`, `/accept`, `/picking`, `/packed`, `/ready` on orders for that store |
+| `DRIVER` | `driverId` | `GET /orders/{orderId}`, `/pickedup`, `/delivered` on orders assigned to that driver |
+| `STORE_ADMIN` | — | `POST /stores` |
 
-Missing or invalid tokens get **401**; a valid token for the wrong customer, store or driver gets **403**. The
-checks are enforced in `OrderService` (see `sevenow-security`). `set-env.sh` generates a random local secret if
+Missing or invalid tokens get **401**; a valid token for the wrong customer, store or driver, or the wrong role, gets
+**403** (`GET /orders/{orderId}` answers **404** for orders the caller may not see). The checks are enforced in
+`OrderService`, `CustomerService` and `StoreService` (see `sevenow-security`). `GET /stores/{storeId}` stays public. `set-env.sh` generates a random local secret if
 `SEVENOW_AUTH_JWT_SECRET` is unset; the end-to-end tests mint tokens with it (`TestTokens`).
 
 Example:
 
 ```bash
-curl -s -X POST localhost:8081/orders -H 'Content-Type: application/json' -d '{
+# CUSTOMER_TOKEN: HS256 JWT with {"sub": "...", "exp": ..., "role": "CUSTOMER", "customerId": 1}
+curl -s -X POST localhost:8081/orders -H "Authorization: Bearer $CUSTOMER_TOKEN" \
+  -H 'Content-Type: application/json' -d '{
   "customerId": 1, "storeId": 1,
   "lineItems": [{"productId": "SLURPEE-CHERRY-M", "quantity": 2}, {"productId": "PIZZA-PEPPERONI-WHOLE", "quantity": 1}]
 }'

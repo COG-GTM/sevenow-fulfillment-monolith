@@ -27,17 +27,23 @@ public class TestTokens {
     return sign(secret(), "DRIVER", "driverId", driverId);
   }
 
+  public static String storeAdmin() {
+    return sign(secret(), "STORE_ADMIN", null, 0);
+  }
+
   public static String bearer(String token) {
     return "Bearer " + token;
   }
 
   public static String sign(String secret, String role, String idClaim, long id) {
-    JWTClaimsSet claims = new JWTClaimsSet.Builder()
+    JWTClaimsSet.Builder builder = new JWTClaimsSet.Builder()
             .subject(role.toLowerCase() + "-" + id)
             .claim("role", role)
-            .claim(idClaim, id)
-            .expirationTime(new Date(System.currentTimeMillis() + 10 * 60 * 1000))
-            .build();
+            .expirationTime(new Date(System.currentTimeMillis() + 10 * 60 * 1000));
+    if (idClaim != null) {
+      builder.claim(idClaim, id);
+    }
+    JWTClaimsSet claims = builder.build();
     SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
     try {
       jwt.sign(new MACSigner(secret.getBytes(StandardCharsets.UTF_8)));
