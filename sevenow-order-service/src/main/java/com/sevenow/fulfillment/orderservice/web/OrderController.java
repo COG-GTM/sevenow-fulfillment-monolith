@@ -1,6 +1,9 @@
 package com.sevenow.fulfillment.orderservice.web;
 
+import com.sevenow.fulfillment.domain.InsufficientStockException;
+import com.sevenow.fulfillment.domain.InvalidOrderLineItemsException;
 import com.sevenow.fulfillment.domain.Order;
+import com.sevenow.fulfillment.domain.OrderMinimumNotMetException;
 import com.sevenow.fulfillment.domain.OrderRepository;
 import com.sevenow.fulfillment.domain.OrderRevision;
 import com.sevenow.fulfillment.orderservice.api.web.CreateOrderRequest;
@@ -14,6 +17,8 @@ import com.sevenow.fulfillment.orderservice.domain.OrderService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,7 +43,7 @@ public class OrderController {
   }
 
   @RequestMapping(method = RequestMethod.POST)
-  public CreateOrderResponse create(@RequestBody CreateOrderRequest request) {
+  public CreateOrderResponse create(@Valid @RequestBody CreateOrderRequest request) {
     Order order = orderService.createOrder(request.getCustomerId(),
             request.getStoreId(),
             request.getLineItems().stream().map(x -> new ProductIdAndQuantity(x.getProductId(), x.getQuantity())).collect(toList())
@@ -78,6 +83,21 @@ public class OrderController {
     return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
   }
 
+  @ExceptionHandler(InsufficientStockException.class)
+  public ResponseEntity<Map<String, Object>> handleInsufficientStock(InsufficientStockException e) {
+    Map<String, Object> body = new HashMap<>();
+    body.put("message", e.getMessage());
+    body.put("insufficientStockProductIds", e.getProductIds());
+    return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler({InvalidOrderLineItemsException.class, OrderMinimumNotMetException.class})
+  public ResponseEntity<Map<String, Object>> handleInvalidLineItems(RuntimeException e) {
+    Map<String, Object> body = new HashMap<>();
+    body.put("message", e.getMessage());
+    return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+  }
+
   private GetOrderResponse makeGetOrderResponse(Order order) {
     return new GetOrderResponse(order.getId(),
             order.getOrderState().name(),
@@ -100,7 +120,7 @@ public class OrderController {
   }
 
   @RequestMapping(path = "/{orderId}/revise", method = RequestMethod.POST)
-  public ResponseEntity<GetOrderResponse> revise(@PathVariable long orderId, @RequestBody ReviseOrderRequest request) {
+  public ResponseEntity<GetOrderResponse> revise(@PathVariable long orderId, @Valid @RequestBody ReviseOrderRequest request) {
     try {
       Order order = orderService.reviseOrder(orderId, new OrderRevision(Optional.empty(), request.getRevisedLineItemQuantities()));
       return new ResponseEntity<>(makeGetOrderResponse(order), HttpStatus.OK);

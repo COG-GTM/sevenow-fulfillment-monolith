@@ -1,12 +1,18 @@
 package com.sevenow.fulfillment.orderservice.api.web;
 
+import javax.validation.Valid;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
 public class CreateOrderRequest {
 
   private long storeId;
   private long customerId;
-  private List<LineItem> lineItems;
+  @NotEmpty
+  @Valid
+  private List<@NotNull LineItem> lineItems;
 
   public CreateOrderRequest(long customerId, long storeId, List<LineItem> lineItems) {
     this.storeId = storeId;
@@ -44,7 +50,9 @@ public class CreateOrderRequest {
 
   public static class LineItem {
 
+    @NotNull
     private String productId;
+    @Min(1)
     private int quantity;
 
     private LineItem() {

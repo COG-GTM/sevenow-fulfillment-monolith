@@ -1,5 +1,6 @@
 package com.sevenow.fulfillment.orderservice.domain;
 
+import com.sevenow.fulfillment.common.Money;
 import io.micrometer.core.instrument.MeterRegistry;
 import com.sevenow.fulfillment.customerservice.domain.CustomerService;
 import com.sevenow.fulfillment.domain.*;
@@ -30,17 +31,20 @@ public class OrderService {
   private CustomerService customerService;
   private DriverRepository driverRepository;
   private Random random = new Random();
+  private Money orderMinimum;
 
   public OrderService(OrderRepository orderRepository,
                       StoreRepository storeRepository,
                       Optional<MeterRegistry> meterRegistry,
-                      CustomerService customerService, DriverRepository driverRepository) {
+                      CustomerService customerService, DriverRepository driverRepository,
+                      Money orderMinimum) {
 
     this.orderRepository = orderRepository;
     this.storeRepository = storeRepository;
     this.meterRegistry = meterRegistry;
     this.customerService = customerService;
     this.driverRepository = driverRepository;
+    this.orderMinimum = orderMinimum;
   }
 
   @Transactional
@@ -52,7 +56,7 @@ public class OrderService {
 
     List<OrderLineItem> orderLineItems = makeOrderLineItems(lineItems, store);
 
-    Order order = new Order(customerId, store, orderLineItems);
+    Order order = new Order(customerId, store, orderLineItems, orderMinimum);
 
     customerService.validateOrderForCustomer(customerId, order.getOrderTotal());
 
@@ -71,8 +75,17 @@ public class OrderService {
    * Substitution rule: a product with zero onHandQuantity is replaced by its configured
    * substituteProductId (priced as the substitute); if no substitute is configured, or the
    * substitute is itself out of stock, the line item is rejected and the whole order fails.
+   * Quantities must be at least 1 and, per resolved product, no more than its onHandQuantity.
    */
   private List<OrderLineItem> makeOrderLineItems(List<ProductIdAndQuantity> lineItems, Store store) {
+    if (lineItems == null || lineItems.isEmpty()) {
+      throw new InvalidOrderLineItemsException("Order must contain at least one line item");
+    }
+    lineItems.forEach(li -> {
+      if (li.getQuantity() < 1) {
+        throw new InvalidOrderLineItemsException("Line item quantity must be at least 1 but was " + li.getQuantity());
+      }
+    });
     List<String> rejected = new ArrayList<>();
     List<OrderLineItem> result = lineItems.stream().map(li -> {
       Product requested = store.findProduct(li.getProductId()).orElseThrow(() -> new InvalidProductIdException(li.getProductId()));

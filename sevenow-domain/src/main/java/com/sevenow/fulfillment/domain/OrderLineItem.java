@@ -45,7 +45,7 @@ public class OrderLineItem {
     this.productId = productId;
     this.name = name;
     this.price = price;
-    this.quantity = quantity;
+    this.quantity = requireValidQuantity(quantity);
     this.substitutedFromProductId = substitutedFromProductId;
   }
 
@@ -62,7 +62,14 @@ public class OrderLineItem {
   }
 
   public void setQuantity(int quantity) {
-    this.quantity = quantity;
+    this.quantity = requireValidQuantity(quantity);
+  }
+
+  static int requireValidQuantity(Integer quantity) {
+    if (quantity == null || quantity < 1) {
+      throw new InvalidOrderLineItemsException("Line item quantity must be at least 1 but was " + quantity);
+    }
+    return quantity;
   }
 
   public void setProductId(String productId) {

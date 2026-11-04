@@ -1,5 +1,6 @@
 package com.sevenow.fulfillment.domain;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -30,6 +31,6 @@ public class OrderRevision {
 
 
   public Map<String, Integer> getRevisedLineItemQuantities() {
-    return revisedLineItemQuantities;
+    return revisedLineItemQuantities == null ? Collections.emptyMap() : revisedLineItemQuantities;
   }
 }
