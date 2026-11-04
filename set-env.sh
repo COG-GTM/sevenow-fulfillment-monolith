@@ -11,10 +11,11 @@ fi
 echo DOCKER_HOST_IP is $DOCKER_HOST_IP
 export COMPOSE_HTTP_TIMEOUT=240
 
-# MySQL is published on loopback by default; a remote Docker daemon must publish it on its own address instead.
+# MySQL is published on the Docker host's loopback only. With a remote daemon, opt in explicitly to a reachable
+# address (or tunnel 3306) rather than exposing the database on the network by default.
 if [ -z "$MYSQL_PUBLISH_ADDRESS" ] && [ -n "$DOCKER_HOST" ] ; then
-  export MYSQL_PUBLISH_ADDRESS=$(getent ahostsv4 "$DOCKER_HOST_IP" | awk 'NR==1 {print $1}')
-  echo MYSQL_PUBLISH_ADDRESS is $MYSQL_PUBLISH_ADDRESS
+  echo "WARNING: DOCKER_HOST is remote but MYSQL_PUBLISH_ADDRESS is unset; MySQL is only reachable on that host's loopback." >&2
+  echo "         Export MYSQL_PUBLISH_ADDRESS=<daemon IP> or tunnel port 3306 and set DOCKER_HOST_IP=localhost." >&2
 fi
 
 # MySQL credentials are never committed: they come from the environment or from a

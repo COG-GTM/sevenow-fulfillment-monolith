@@ -73,12 +73,13 @@ Both accounts are created `REQUIRE SSL` by `mysql/init-sevenow.sh`; set `SEVENOW
 `useSSL=true&requireSSL=true` with the container's self-signed certificate (`verifyServerCertificate=false`);
 outside local Docker, override `SPRING_DATASOURCE_URL` and `FLYWAY_URL` with `verifyServerCertificate=true` and a
 `trustCertificateKeyStoreUrl`. Port 3306 is published on `127.0.0.1` only (`MYSQL_PUBLISH_ADDRESS` overrides it;
-`set-env.sh` sets it to the remote host's address when `DOCKER_HOST` points at a remote daemon).
+with a remote `DOCKER_HOST`, export it explicitly or tunnel 3306 — `set-env.sh` warns when it is unset).
 
 On Kubernetes, `kubernetes-deploy-all.sh` creates `sevenow-db-secret` (random values unless exported) and mounts
-`mysql/init-sevenow.sh` into the stock `mysql:5.7` StatefulSet; `kubernetes-delete-all.sh` removes both. The init
-script only runs on an empty volume, so run `kubernetes-delete-volumes.sh` to drop a database created with the old
-accounts.
+`mysql/init-sevenow.sh` into the stock `mysql:5.7` StatefulSet. The init script only runs on an empty volume, so the
+secret lives as long as the volume: `kubernetes-delete-all.sh` keeps both, and `kubernetes-delete-volumes.sh` deletes
+the PVC together with `sevenow-db-secret` (new credentials on the next deploy). Run it once to drop a database
+created with the old accounts.
 
 Flyway (`sevenow-flyway`) runs `V1` (original FTGO schema), `V2__rebrand_7now.sql` (rename + new columns) and
 `V3__seed_7now_data.sql` (store #38114 in Irving, TX with 18 products across cold drinks, snacks, pizza and hot
