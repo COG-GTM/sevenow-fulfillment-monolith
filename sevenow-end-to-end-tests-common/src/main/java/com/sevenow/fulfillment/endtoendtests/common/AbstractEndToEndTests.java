@@ -185,18 +185,45 @@ public abstract class AbstractEndToEndTests {
 
     noteDriverAvailable();
 
-    acceptOrder();
+    try {
+      for (long otherDriverId = 1; otherDriverId < driverId; otherDriverId++) {
+        setDriverAvailabilityAsDispatcher(otherDriverId, false);
+      }
 
-    int unapprovedDriverId = driverId;
-    int assignedDriver = given().
-            header("Authorization", bearer(TestTokens.customer(customerId))).
+      given().
+              header("Authorization", bearer(TestTokens.storeAssociate(storeId))).
+              body(new OrderAcceptance(LocalDateTime.now().plusHours(9))).
+              contentType("application/json").
+              when().
+              post(orderBaseUrl(Long.toString(orderId), "accept")).
+              then().
+              statusCode(409);
+
+      verifyOrderState(orderId, "APPROVED");
+
+      approveDriver();
+
+      acceptOrder();
+
+      assertOrderAssignedToDriver();
+
+      assertThat(assignedDriverId).isEqualTo(driverId);
+    } finally {
+      setDriverAvailabilityAsDispatcher(1, true);
+    }
+  }
+
+  private void setDriverAvailabilityAsDispatcher(long id, boolean available) {
+    int status = given().
+            header("Authorization", bearer(TestTokens.dispatcher())).
+            body(new DriverAvailability(available)).
+            contentType("application/json").
             when().
-            get(orderBaseUrl(Long.toString(orderId))).
+            post(driversUrl(Long.toString(id), "availability")).
             then().
-            statusCode(200)
-            .extract()
-            .path("assignedDriver");
-    assertThat(assignedDriver).isGreaterThan(0).isNotEqualTo(unapprovedDriverId);
+            extract().
+            statusCode();
+    assertThat(status).isIn(200, 404);
   }
 
   @Test
