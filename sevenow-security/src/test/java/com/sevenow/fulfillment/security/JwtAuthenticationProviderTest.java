@@ -53,6 +53,22 @@ public class JwtAuthenticationProviderTest {
     assertThat(authentication.getAuthorities()).extracting("authority").containsExactly("ROLE_STORE_ADMIN");
   }
 
+  @Test
+  public void shouldAuthenticateDispatcherWithoutIdClaim() throws Exception {
+    JWTClaimsSet claims = new JWTClaimsSet.Builder()
+            .subject("dispatch-1")
+            .claim("role", "DISPATCHER")
+            .expirationTime(new Date(System.currentTimeMillis() + 60_000))
+            .build();
+    Authentication authentication = provider.authenticate(new BearerTokenAuthenticationToken(sign(SECRET, claims)));
+
+    SevenowPrincipal principal = (SevenowPrincipal) authentication.getPrincipal();
+    assertThat(principal.isDispatcher()).isTrue();
+    assertThat(principal.isStoreAdmin()).isFalse();
+    assertThat(principal.isDriver(0L)).isFalse();
+    assertThat(authentication.getAuthorities()).extracting("authority").containsExactly("ROLE_DISPATCHER");
+  }
+
   @Test(expected = BadCredentialsException.class)
   public void shouldRejectTokenSignedWithOtherSecret() throws Exception {
     provider.authenticate(new BearerTokenAuthenticationToken(

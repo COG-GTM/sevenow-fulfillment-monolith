@@ -13,9 +13,9 @@ import org.springframework.security.web.authentication.AnonymousAuthenticationFi
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 /**
- * Stateless bearer-token security. All order endpoints and customer reads require an authenticated caller, and
- * creating a store requires STORE_ADMIN. Which caller may act on which order or customer is enforced in OrderService
- * and CustomerService.
+ * Stateless bearer-token security. All order and driver endpoints and customer reads require an authenticated caller,
+ * creating a store requires STORE_ADMIN, and registering or approving a driver requires DISPATCHER. Which caller may
+ * act on which order, customer or driver is enforced in OrderService, CustomerService and DriverService.
  */
 @Configuration
 @EnableWebSecurity
@@ -51,6 +51,8 @@ public class SevenowSecurityConfiguration extends WebSecurityConfigurerAdapter {
             .mvcMatchers("/orders", "/orders/**").authenticated()
             .mvcMatchers(HttpMethod.GET, "/customers/**").authenticated()
             .mvcMatchers(HttpMethod.POST, "/stores").hasRole(SevenowRole.STORE_ADMIN.name())
+            .mvcMatchers(HttpMethod.POST, "/drivers", "/drivers/{driverId}/approve").hasRole(SevenowRole.DISPATCHER.name())
+            .mvcMatchers("/drivers", "/drivers/**").authenticated()
             .anyRequest().permitAll();
   }
 }

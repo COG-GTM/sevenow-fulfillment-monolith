@@ -3,6 +3,7 @@ package com.sevenow.fulfillment.driverservice.web;
 import com.sevenow.fulfillment.driverservice.api.DriverAvailability;
 import com.sevenow.fulfillment.driverservice.api.CreateDriverRequest;
 import com.sevenow.fulfillment.driverservice.api.CreateDriverResponse;
+import com.sevenow.fulfillment.driverservice.domain.DriverNotFoundException;
 import com.sevenow.fulfillment.driverservice.domain.DriverService;
 import com.sevenow.fulfillment.domain.Driver;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,12 @@ public class DriverController {
     return new ResponseEntity<>(new CreateDriverResponse(driver.getId()), HttpStatus.OK);
   }
 
+  @RequestMapping(path="/drivers/{driverId}/approve", method= RequestMethod.POST)
+  public ResponseEntity<String> approve(@PathVariable long driverId) {
+    driverService.approve(driverId);
+    return new ResponseEntity<>(HttpStatus.OK);
+  }
+
   @RequestMapping(path="/drivers/{driverId}/availability", method= RequestMethod.POST)
   public ResponseEntity<String> updateDriverLocation(@PathVariable long driverId, @RequestBody DriverAvailability availability) {
     driverService.updateAvailability(driverId, availability.isAvailable());
@@ -32,8 +39,13 @@ public class DriverController {
 
   @RequestMapping(path="/drivers/{driverId}", method= RequestMethod.GET)
   public ResponseEntity<Driver> get(@PathVariable long driverId) {
-    Driver driver = driverService.findDriverById(driverId);
+    Driver driver = driverService.findDriverForCaller(driverId);
     return new ResponseEntity<>(driver, HttpStatus.OK);
+  }
+
+  @ExceptionHandler(DriverNotFoundException.class)
+  public ResponseEntity<String> handleDriverNotFound() {
+    return new ResponseEntity<>(HttpStatus.NOT_FOUND);
   }
 
 }

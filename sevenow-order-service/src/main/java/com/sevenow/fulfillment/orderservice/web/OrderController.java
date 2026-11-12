@@ -7,6 +7,7 @@ import com.sevenow.fulfillment.orderservice.api.web.CreateOrderResponse;
 import com.sevenow.fulfillment.orderservice.api.web.OrderAcceptance;
 import com.sevenow.fulfillment.orderservice.api.web.ReviseOrderRequest;
 import com.sevenow.fulfillment.orderservice.domain.InvalidProductIdException;
+import com.sevenow.fulfillment.orderservice.domain.NoDriverAvailableException;
 import com.sevenow.fulfillment.orderservice.domain.OrderNotFoundException;
 import com.sevenow.fulfillment.orderservice.domain.ProductOutOfStockException;
 import com.sevenow.fulfillment.orderservice.domain.OrderService;
@@ -71,6 +72,13 @@ public class OrderController {
     Map<String, Object> body = new HashMap<>();
     body.put("message", e.getMessage());
     return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+  }
+
+  @ExceptionHandler(NoDriverAvailableException.class)
+  public ResponseEntity<Map<String, Object>> handleNoDriverAvailable(NoDriverAvailableException e) {
+    Map<String, Object> body = new HashMap<>();
+    body.put("message", e.getMessage());
+    return new ResponseEntity<>(body, HttpStatus.CONFLICT);
   }
 
   private GetOrderResponse makeGetOrderResponse(Order order) {

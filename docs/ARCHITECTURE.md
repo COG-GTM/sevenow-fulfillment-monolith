@@ -55,9 +55,9 @@ Docker-compose stack). `buildSrc` holds the `IntegrationTestsPlugin`, `WaitForMy
 | `sevenow-store-service-api` | `…storeservice.events` | common | `CreateStoreRequest`, `StoreCatalogDTO`, `ProductDTO` |
 | `sevenow-store-service` | `…storeservice` | common-swagger, store-service-api, domain | `StoreService`, `StoreController` |
 | `sevenow-driver-service-api` | `…driverservice.api` | common | `CreateDriverRequest/Response`, `DriverAvailability` |
-| `sevenow-driver-service` | `…driverservice` | common-swagger, driver-service-api, domain | `DriverService`, `DriverController` |
+| `sevenow-driver-service` | `…driverservice` | common-swagger, driver-service-api, domain, security | `DriverService`, `DriverController` |
 | `sevenow-order-service-api` | `…orderservice.api` | common | `CreateOrderRequest/Response`, `ReviseOrderRequest`, `OrderAcceptance`, `OrderDetails` |
-| `sevenow-security` | `…security` | — | `SevenowSecurityConfiguration` (stateless JWT bearer auth; lifecycle POSTs require authentication), `SevenowCaller` (customer / store-associate / assigned-driver checks) |
+| `sevenow-security` | `…security` | — | `SevenowSecurityConfiguration` (stateless JWT bearer auth; lifecycle POSTs require authentication), `SevenowCaller` (customer / store-associate / assigned-driver / dispatcher checks) |
 | `sevenow-order-service` | `…orderservice` | common-swagger, domain, security, customer-service-api, store-service-api, order-service-api, **customer-service** | `OrderService` (create + substitution rule, cancel, revise, accept + driver scheduling, state transitions, each authorized against the caller via `SevenowCaller`), `OrderController`, `TicketController`, `GetOrderResponse` |
 | `sevenow-application` | `…` | the four `*-service` modules | main class, `application.properties`, Dockerfile |
 
@@ -67,7 +67,7 @@ Docker-compose stack). `buildSrc` holds the `IntegrationTestsPlugin`, `WaitForMy
 |---|---|
 | customer-service | `POST /customers`, `GET /customers/{customerId}` |
 | store-service | `POST /stores`, `GET /stores/{storeId}` |
-| driver-service | `POST /drivers`, `POST /drivers/{driverId}/availability`, `GET /drivers/{driverId}` |
+| driver-service | `POST /drivers`, `POST /drivers/{driverId}/approve`, `POST /drivers/{driverId}/availability`, `GET /drivers/{driverId}` |
 | order-service | `POST /orders`, `GET /orders/{orderId}`, `GET /orders?customerId=`, `POST /orders/{orderId}/{cancel,revise,accept,picking,packed,ready,pickedup,delivered}` |
 
 All controllers live in the same servlet; there is no API gateway and no inter-module HTTP — collaboration is by Java
@@ -84,7 +84,7 @@ table; "also read/written by" lists every other module that touches it, which is
 | `hibernate_sequence` | customer-service (only sequence user) | Hibernate table generator | `next_val` | — |
 | `stores` | store-service | `Store` | `id`, `store_number`, `name`, `street1..zip` | order-service: `OrderService.createOrder` loads `Store` via `StoreRepository`; `Order.store` is a JPA `@ManyToOne` and `GET /orders` reads `store.name` |
 | `store_products` | store-service | `Store.products` `@ElementCollection` of `Product` | `store_id` (FK → stores), `id`, `name`, `price`, `on_hand_quantity`, `substitute_product_id` | order-service reads `Store.findProduct` for price, stock and substitution at order time |
-| `drivers` | driver-service | `Driver` | `id`, `available`, `first_name`, `last_name`, `street1..zip` | order-service: `DriverRepository.findAllAvailable()` and `Order.assignedDriver` `@ManyToOne` in `OrderService.scheduleDelivery` |
+| `drivers` | driver-service | `Driver` | `id`, `available`, `approved`, `first_name`, `last_name`, `street1..zip` | order-service: `DriverRepository.findAllAvailable()` and `Order.assignedDriver` `@ManyToOne` in `OrderService.scheduleDelivery` |
 | `driver_actions` | driver-service | `Driver.plan.actions` `@ElementCollection` of `Action` | `driver_id` (FK → drivers), `order_id` (FK → orders), `type`, `time` | **written by order-service** (`Driver.addAction` during accept); `Action.order` is a `@ManyToOne` to `Order` |
 | `orders` | order-service | `Order` | `id`, `version`, `order_state`, `customer_id`, `store_id` (FK → stores), `assigned_driver_id` (FK → drivers), `accept_time`, `picking_time`, `packed_time`, `ready_for_pickup_time`, `picked_up_time`, `delivered_time`, `ready_by`, `order_minimum`, `delivery_*`, `payment_token` | driver-service reads orders through `Action.order` when serving `GET /drivers/{id}` plan |
 | `order_line_items` | order-service | `Order.orderLineItems` `@ElementCollection` of `OrderLineItem` | `order_id` (FK → orders), `product_id`, `name`, `price`, `quantity`, `substituted_from_product_id` | — |
@@ -149,7 +149,7 @@ Stock is **not** decremented when ordering (not required by the demo); the rule 
 
 Store `#38114` (Irving, TX) with 18 products — cold drinks, snacks, pizza, hot food — including out-of-stock
 `RED-BULL-12OZ`→`MONSTER-16OZ`, `DORITOS-NACHO-9OZ`→`DORITOS-COOLRANCH-9OZ`, `PIZZA-PEPPERONI-WHOLE`→`PIZZA-CHEESE-WHOLE`
-and `WINGS-8PC` (no substitute); drivers `1` (available) and `2`; customer `1`.
+and `WINGS-8PC` (no substitute); drivers `1` (available) and `2`, both approved by `V5`; customer `1`.
 
 ## 8. Migrating an existing FTGO database
 
