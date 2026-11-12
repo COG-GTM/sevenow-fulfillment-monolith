@@ -36,6 +36,26 @@ public class MoneyTest {
     assertEquals(new Money(M2_AMOUNT * multiplier), m2.multiply(multiplier));
   }
 
+  @Test
+  public void shouldAcceptBoundedAmounts() {
+    assertEquals("12.34", new Money("12.34").asString());
+    assertEquals("100", new Money("1E+2").asString());
+    assertEquals("99999999999999999.9999", new Money("99999999999999999.9999").asString());
+  }
+
+  @Test
+  public void shouldRejectUnboundedAmounts() {
+    for (String amount : new String[]{"1e-200000000", "1e200000000", "1e2147483647", "1e-2147483648",
+            "1.23456", "123456789012345678", "0000000000000000000000000000000001"}) {
+      try {
+        new Money(amount);
+        fail("expected IllegalArgumentException for " + amount);
+      } catch (IllegalArgumentException e) {
+        // expected
+      }
+    }
+  }
+
 
 
 }

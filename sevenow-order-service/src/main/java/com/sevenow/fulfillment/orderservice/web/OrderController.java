@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +40,7 @@ public class OrderController {
   }
 
   @RequestMapping(method = RequestMethod.POST)
-  public CreateOrderResponse create(@RequestBody CreateOrderRequest request) {
+  public CreateOrderResponse create(@Valid @RequestBody CreateOrderRequest request) {
     Order order = orderService.createOrder(request.getCustomerId(),
             request.getStoreId(),
             request.getLineItems().stream().map(x -> new ProductIdAndQuantity(x.getProductId(), x.getQuantity())).collect(toList())

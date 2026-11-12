@@ -27,8 +27,11 @@ public class MoneyModule extends SimpleModule {
         String str = jp.getText().trim();
         if (str.isEmpty())
           return null;
-        else
+        try {
           return new Money(str);
+        } catch (IllegalArgumentException e) {
+          throw ctxt.weirdStringException(str, Money.class, e.getMessage());
+        }
       } else
         throw ctxt.mappingException(getValueClass());
     }

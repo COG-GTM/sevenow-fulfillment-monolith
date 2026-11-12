@@ -8,15 +8,22 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 import javax.persistence.Access;
 import javax.persistence.AccessType;
 import javax.persistence.Embeddable;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 @Embeddable
 @Access(AccessType.FIELD)
 public class ProductDTO {
 
+  @NotNull
+  @Size(max = 255)
   private String id;
+  @Size(max = 255)
   private String name;
+  @NotNull
   private Money price;
   private int onHandQuantity;
+  @Size(max = 255)
   private String substituteProductId;
 
   private ProductDTO() {

@@ -1,12 +1,22 @@
 package com.sevenow.fulfillment.orderservice.api.web;
 
+import javax.validation.Valid;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.List;
 
 public class CreateOrderRequest {
 
+  public static final int MAX_LINE_ITEMS = 50;
+
   private long storeId;
   private long customerId;
-  private List<LineItem> lineItems;
+
+  @NotEmpty
+  @Size(max = MAX_LINE_ITEMS)
+  @Valid
+  private List<@NotNull LineItem> lineItems;
 
   public CreateOrderRequest(long customerId, long storeId, List<LineItem> lineItems) {
     this.storeId = storeId;
@@ -44,6 +54,8 @@ public class CreateOrderRequest {
 
   public static class LineItem {
 
+    @NotNull
+    @Size(max = 255)
     private String productId;
     private int quantity;
 

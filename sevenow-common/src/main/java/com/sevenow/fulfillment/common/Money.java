@@ -15,6 +15,10 @@ public class Money {
 
   public static Money ZERO = new Money(0);
 
+  public static final int MAX_STRING_LENGTH = 32;
+  public static final int MAX_SCALE = 4;
+  public static final int MAX_INTEGER_DIGITS = 17;
+
   private BigDecimal amount;
 
   private Money() {
@@ -25,7 +29,17 @@ public class Money {
   }
 
   public Money(String s) {
-    this.amount = new BigDecimal(s);
+    if (s.length() > MAX_STRING_LENGTH)
+      throw new IllegalArgumentException("Money amount must be at most " + MAX_STRING_LENGTH + " characters");
+    this.amount = requireBounded(new BigDecimal(s));
+  }
+
+  private static BigDecimal requireBounded(BigDecimal amount) {
+    long integerDigits = (long) amount.precision() - amount.scale();
+    if (amount.scale() > MAX_SCALE || integerDigits > MAX_INTEGER_DIGITS)
+      throw new IllegalArgumentException("Money amount must have at most " + MAX_INTEGER_DIGITS +
+              " integer digits and " + MAX_SCALE + " decimal places");
+    return amount;
   }
 
   public Money(int i) {

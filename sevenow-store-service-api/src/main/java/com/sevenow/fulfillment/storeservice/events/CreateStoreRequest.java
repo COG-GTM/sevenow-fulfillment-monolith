@@ -3,10 +3,18 @@ package com.sevenow.fulfillment.storeservice.events;
 
 import com.sevenow.fulfillment.common.Address;
 
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
 public class CreateStoreRequest {
 
+  @Size(max = 32)
   private String storeNumber;
+  @Size(max = 255)
   private String name;
+  @NotNull
+  @Valid
   private StoreCatalogDTO catalog;
   private Address address;
 

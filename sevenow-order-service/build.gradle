@@ -21,7 +21,6 @@ dependencies {
     compile "org.springframework.boot:spring-boot-starter-actuator:$springBootVersion"
     compile "io.micrometer:micrometer-registry-prometheus:$micrometerVersion"
     compile "org.springframework.boot:spring-boot-starter-web:$springBootVersion"
-    compile 'javax.el:javax.el-api:2.2.5'
 
     testCompile "org.springframework.boot:spring-boot-starter-test:$springBootVersion"
 

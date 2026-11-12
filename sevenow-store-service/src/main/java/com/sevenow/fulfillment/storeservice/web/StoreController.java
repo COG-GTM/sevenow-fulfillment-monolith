@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
+
 @RestController
 @RequestMapping(path = "/stores")
 public class StoreController {
@@ -16,7 +18,7 @@ public class StoreController {
   private StoreService storeService;
 
   @RequestMapping(method = RequestMethod.POST)
-  public CreateStoreResponse create(@RequestBody CreateStoreRequest request) {
+  public CreateStoreResponse create(@Valid @RequestBody CreateStoreRequest request) {
     Store r = storeService.create(request);
     return new CreateStoreResponse(r.getId());
   }
