@@ -4,10 +4,19 @@ import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.List;
 
 public class StoreCatalogDTO {
-  private List<ProductDTO> products;
+
+  public static final int MAX_PRODUCTS = 500;
+
+  @NotNull
+  @Size(max = MAX_PRODUCTS)
+  @Valid
+  private List<@NotNull ProductDTO> products;
 
   private StoreCatalogDTO() {
   }

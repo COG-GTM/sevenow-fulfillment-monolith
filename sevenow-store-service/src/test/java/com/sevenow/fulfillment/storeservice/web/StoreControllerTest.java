@@ -9,6 +9,7 @@ import com.sevenow.fulfillment.domain.Store;
 import com.sevenow.fulfillment.domain.StoreCatalog;
 import com.sevenow.fulfillment.storeservice.domain.StoreService;
 import com.sevenow.fulfillment.storeservice.events.CreateStoreRequest;
+import com.sevenow.fulfillment.storeservice.events.StoreCatalogDTO;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -17,7 +18,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.test.web.servlet.setup.StandaloneMockMvcBuilder;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 import static io.restassured.module.mockmvc.RestAssuredMockMvc.given;
@@ -26,6 +29,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -112,6 +116,47 @@ public class StoreControllerTest {
             get("/stores/99").
     then().
             statusCode(404);
+  }
+
+  @Test
+  public void shouldRejectCatalogWithTooManyProducts() {
+    List<String> products = new ArrayList<>();
+    for (int i = 0; i <= StoreCatalogDTO.MAX_PRODUCTS; i++)
+      products.add(String.format("{\"id\": \"P-%d\", \"name\": \"Product %d\", \"price\": \"1.00\", \"onHandQuantity\": 1}", i, i));
+
+    assertCreateRejected(storeBody(String.join(",", products)));
+  }
+
+  @Test
+  public void shouldRejectPriceWithUnboundedScale() {
+    assertCreateRejected(storeBody("{\"id\": \"EVIL\", \"name\": \"Evil\", \"price\": \"1e-200000000\", \"onHandQuantity\": 1}"));
+  }
+
+  @Test
+  public void shouldRejectPriceWithUnboundedMagnitude() {
+    assertCreateRejected(storeBody("{\"id\": \"EVIL\", \"name\": \"Evil\", \"price\": \"1e200000000\", \"onHandQuantity\": 1}"));
+  }
+
+  @Test
+  public void shouldRejectMissingCatalog() {
+    assertCreateRejected("{\"storeNumber\": \"38114\", \"name\": \"7-Eleven #38114\"}");
+  }
+
+  private String storeBody(String productsJson) {
+    return "{\"storeNumber\": \"38114\", \"name\": \"7-Eleven #38114\", \"catalog\": {\"products\": [" + productsJson + "]}}";
+  }
+
+  private void assertCreateRejected(String body) {
+    given().
+            standaloneSetup(configureControllers(storeController)).
+            contentType("application/json").
+            body(body).
+    when().
+            post("/stores").
+    then().
+            statusCode(400);
+
+    verify(storeService, never()).create(any(CreateStoreRequest.class));
   }
 
   private StandaloneMockMvcBuilder configureControllers(Object... controllers) {

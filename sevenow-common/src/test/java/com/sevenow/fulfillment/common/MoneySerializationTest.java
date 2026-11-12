@@ -75,6 +75,18 @@ public class MoneySerializationTest {
   }
 
   @Test
+  public void shouldRejectUnboundedAmounts() throws IOException {
+    for (String amount : new String[]{"1e-200000000", "1e200000000", "1.23456", "123456789012345678", "0000000000000000000000000000000001"}) {
+      try {
+        objectMapper.readValue("{\"price\":\"" + amount + "\"}", MoneyContainer.class);
+        fail("expected exception for " + amount);
+      } catch (JsonMappingException e) {
+        // expected
+      }
+    }
+  }
+
+  @Test
   public void shouldFailToDe() throws IOException  {
     JsonMappingException jsonMappingException = null;
     try {
