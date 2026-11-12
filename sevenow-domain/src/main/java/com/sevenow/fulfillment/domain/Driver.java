@@ -26,7 +26,9 @@ public class Driver {
   @Embedded
   private Plan plan;
 
-  private Boolean available;
+  private Boolean available = false;
+
+  private Boolean approved = false;
 
   public Driver() {
   }
@@ -50,7 +52,15 @@ public class Driver {
   }
 
   public boolean isAvailable() {
-    return available;
+    return Boolean.TRUE.equals(available);
+  }
+
+  public boolean isApproved() {
+    return Boolean.TRUE.equals(approved);
+  }
+
+  public void noteApproved() {
+    this.approved = true;
   }
 
   public Plan getPlan() {

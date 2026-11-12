@@ -73,7 +73,8 @@ start at `on_hand_quantity = 0`, seed rows are `insert ignore`); see `docs/ARCHI
 | GET | `/customers/{customerId}` | customer-service | get customer |
 | POST | `/stores` | store-service | create store with `storeNumber`, `address`, `catalog.products[]` |
 | GET | `/stores/{storeId}` | store-service | store incl. products and on-hand quantities |
-| POST | `/drivers` | driver-service | create driver |
+| POST | `/drivers` | driver-service | register driver (unapproved) |
+| POST | `/drivers/{driverId}/approve` | driver-service | approve driver for scheduling |
 | POST | `/drivers/{driverId}/availability` | driver-service | set availability |
 | GET | `/drivers/{driverId}` | driver-service | driver with delivery plan |
 | POST | `/orders` | order-service | create order (`customerId`, `storeId`, `lineItems[{productId, quantity}]`); applies substitution rule |
@@ -86,21 +87,26 @@ start at `on_hand_quantity = 0`, seed rows are `insert ignore`); see `docs/ARCHI
 
 ### Authentication and authorization
 
-All `/orders` endpoints, `GET /customers/{customerId}` and `POST /stores` require an `Authorization: Bearer <JWT>` header (HS256, signed with
+All `/orders` and `/drivers` endpoints, `GET /customers/{customerId}` and `POST /stores` require an `Authorization: Bearer <JWT>` header (HS256, signed with
 `SEVENOW_AUTH_JWT_SECRET`, at least 32 bytes; the app refuses to start without it). Tokens are issued by the
 7NOW identity provider / API gateway and must carry `sub`, `exp`, `role` and the id claim for that role (none for
-`STORE_ADMIN`):
+`STORE_ADMIN` and `DISPATCHER`):
 
 | `role` | id claim | May call |
 |---|---|---|
 | `CUSTOMER` | `customerId` | `POST /orders` for itself; `GET /orders` (its own history; `?customerId=` is optional and must match); `GET /orders/{orderId}`, `/cancel`, `/revise` on orders it placed; `GET /customers/{customerId}` for itself |
 | `STORE_ASSOCIATE` | `storeId` | `GET /orders/{orderId}`, `/accept`, `/picking`, `/packed`, `/ready` on orders for that store |
-| `DRIVER` | `driverId` | `GET /orders/{orderId}`, `/pickedup`, `/delivered` on orders assigned to that driver |
+| `DRIVER` | `driverId` | `GET /orders/{orderId}`, `/pickedup`, `/delivered` on orders assigned to that driver; `GET /drivers/{driverId}`, `POST /drivers/{driverId}/availability` for itself |
 | `STORE_ADMIN` | — | `POST /stores` |
+| `DISPATCHER` | — | `POST /drivers`, `POST /drivers/{driverId}/approve`; `GET /drivers/{driverId}`, `POST /drivers/{driverId}/availability` for any driver |
+
+New drivers are unapproved: `OrderService.scheduleDelivery` only assigns drivers that are both available and approved
+(`DriverRepository.findAllAvailable`), and `POST /orders/{orderId}/accept` answers **409** and leaves the order
+`APPROVED` when no such driver exists. `V5` approves the seeded drivers `1` and `2` only.
 
 Missing or invalid tokens get **401**; a valid token for the wrong customer, store or driver, or the wrong role, gets
 **403** (`GET /orders/{orderId}` answers **404** for orders the caller may not see). The checks are enforced in
-`OrderService`, `CustomerService` and `StoreService` (see `sevenow-security`). `GET /stores/{storeId}` stays public. `set-env.sh` generates a random local secret if
+`OrderService`, `CustomerService`, `StoreService` and `DriverService` (see `sevenow-security`). `GET /stores/{storeId}` stays public. `set-env.sh` generates a random local secret if
 `SEVENOW_AUTH_JWT_SECRET` is unset; the end-to-end tests mint tokens with it (`TestTokens`).
 
 Example:

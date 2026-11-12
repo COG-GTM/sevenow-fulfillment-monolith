@@ -150,16 +150,27 @@ public class OrderService {
   public void accept(long orderId, LocalDateTime readyBy) {
     Order order = tryToFindOrder(orderId);
     requireStoreAssociate(order);
+    Driver driver = chooseAvailableDriver();
     order.acceptTicket(readyBy);
-    scheduleDelivery(order, readyBy);
+    assignDriver(order, driver, readyBy);
   }
 
   public void scheduleDelivery(Order order, LocalDateTime readyBy) {
+    assignDriver(order, chooseAvailableDriver(), readyBy);
+  }
 
-    // Stupid implementation
-
+  /**
+   * A random driver who is both available and approved by a dispatcher.
+   */
+  private Driver chooseAvailableDriver() {
     List<Driver> drivers = driverRepository.findAllAvailable();
-    Driver driver = drivers.get(random.nextInt(drivers.size()));
+    if (drivers.isEmpty()) {
+      throw new NoDriverAvailableException();
+    }
+    return drivers.get(random.nextInt(drivers.size()));
+  }
+
+  private void assignDriver(Order order, Driver driver, LocalDateTime readyBy) {
     driver.addAction(Action.makePickup(order));
     driver.addAction(Action.makeDropoff(order, readyBy.plusMinutes(30)));
 

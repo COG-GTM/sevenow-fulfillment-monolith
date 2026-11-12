@@ -2,7 +2,7 @@ package com.sevenow.fulfillment.security;
 
 /**
  * Authenticated caller: a customer, an associate of one store, or a driver, identified by that entity's id; or a
- * store admin (operator), which has no entity id.
+ * store admin or dispatcher (operators), which have no entity id.
  */
 public final class SevenowPrincipal {
 
@@ -42,6 +42,10 @@ public final class SevenowPrincipal {
 
   public boolean isStoreAdmin() {
     return role == SevenowRole.STORE_ADMIN;
+  }
+
+  public boolean isDispatcher() {
+    return role == SevenowRole.DISPATCHER;
   }
 
   @Override

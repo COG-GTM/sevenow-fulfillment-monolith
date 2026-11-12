@@ -45,6 +45,17 @@ public final class SevenowCaller {
     requireRole(SevenowRole.STORE_ADMIN);
   }
 
+  public static void requireDispatcher() {
+    requireRole(SevenowRole.DISPATCHER);
+  }
+
+  public static void requireDriverOrDispatcher(Long driverId) {
+    SevenowPrincipal caller = current();
+    if (!caller.isDispatcher() && !caller.isDriver(driverId)) {
+      throw new AccessDeniedException("Caller is neither this driver nor a dispatcher");
+    }
+  }
+
   public static void requireDriver(Long driverId) {
     if (!current().isDriver(driverId)) {
       throw new AccessDeniedException("Caller is not the driver assigned to this order");

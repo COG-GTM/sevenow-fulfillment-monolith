@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface DriverRepository extends CrudRepository<Driver, Long> {
 
-  @Query("SELECT c FROM Driver c WHERE c.available = true")
+  @Query("SELECT c FROM Driver c WHERE c.available = true AND c.approved = true")
   List<Driver> findAllAvailable();
 
 }

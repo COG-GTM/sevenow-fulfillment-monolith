@@ -116,6 +116,8 @@ public abstract class AbstractEndToEndTests {
 
     createDriver();
 
+    approveDriver();
+
     noteDriverAvailable();
 
     acceptOrder();
@@ -172,6 +174,82 @@ public abstract class AbstractEndToEndTests {
     verifyOrderState(orderId, "APPROVED");
 
     cancelOrder();
+  }
+
+  @Test
+  public void shouldNotScheduleUnapprovedDriver() {
+
+    createOrder();
+
+    createDriver();
+
+    noteDriverAvailable();
+
+    acceptOrder();
+
+    int unapprovedDriverId = driverId;
+    int assignedDriver = given().
+            header("Authorization", bearer(TestTokens.customer(customerId))).
+            when().
+            get(orderBaseUrl(Long.toString(orderId))).
+            then().
+            statusCode(200)
+            .extract()
+            .path("assignedDriver");
+    assertThat(assignedDriver).isGreaterThan(0).isNotEqualTo(unapprovedDriverId);
+  }
+
+  @Test
+  public void shouldRejectUnauthenticatedAndUnauthorizedDriverCalls() {
+
+    createDriver();
+
+    String forged = TestTokens.sign("not-the-7now-signing-secret-0123456789", "DISPATCHER", null, 0);
+    for (String token : new String[]{null, forged}) {
+      assertDriverCallRejected("POST", driversUrl(), createDriverBody(), token, 401);
+      assertDriverCallRejected("POST", driversUrl(Long.toString(driverId), "approve"), "{}", token, 401);
+      assertDriverCallRejected("POST", driversUrl(Long.toString(driverId), "availability"), "{\"available\":false}", token, 401);
+      assertDriverCallRejected("GET", driversUrl(Long.toString(driverId)), null, token, 401);
+    }
+
+    String otherDriver = TestTokens.driver(driverId + 1_000_000);
+    assertDriverCallRejected("POST", driversUrl(), createDriverBody(), TestTokens.driver(driverId), 403);
+    assertDriverCallRejected("POST", driversUrl(), createDriverBody(), TestTokens.storeAdmin(), 403);
+    assertDriverCallRejected("POST", driversUrl(Long.toString(driverId), "approve"), "{}", TestTokens.driver(driverId), 403);
+    assertDriverCallRejected("POST", driversUrl("1", "availability"), "{\"available\":false}", TestTokens.driver(driverId), 403);
+    assertDriverCallRejected("POST", driversUrl(Long.toString(driverId), "availability"), "{\"available\":true}", otherDriver, 403);
+    assertDriverCallRejected("GET", driversUrl(Long.toString(driverId)), null, otherDriver, 403);
+    assertDriverCallRejected("GET", driversUrl(Long.toString(driverId)), null, TestTokens.customer(1), 403);
+
+    given().
+            header("Authorization", bearer(TestTokens.driver(driverId))).
+            when().
+            get(driversUrl(Long.toString(driverId))).
+            then().
+            statusCode(200)
+            .body("approved", equalTo(false))
+            .body("available", equalTo(false));
+  }
+
+  private void assertDriverCallRejected(String method, String url, Object body, String token, int expectedStatus) {
+    com.jayway.restassured.specification.RequestSpecification request = given().contentType("application/json");
+    if (body != null) {
+      request = request.body(body);
+    }
+    if (token != null) {
+      request = request.header("Authorization", bearer(token));
+    }
+    ("GET".equals(method) ? request.when().get(url) : request.when().post(url)).
+            then().
+            statusCode(expectedStatus);
+  }
+
+  private String driversUrl(String... pathElements) {
+    return baseUrl(getApplicationPort(), "drivers", pathElements);
+  }
+
+  private CreateDriverRequest createDriverBody() {
+    return new CreateDriverRequest(new PersonName("Dana", "Driver"), new Address("5601 N MacArthur Blvd", null, "Irving", "TX", "75038"));
   }
 
   private void assertLifecycleCallRejected(String step, String token, int expectedStatus) {
@@ -525,18 +603,29 @@ public abstract class AbstractEndToEndTests {
 
   private void createDriver() {
     driverId = given().
-            body(new CreateDriverRequest(new PersonName("Dana", "Driver"), new Address("5601 N MacArthur Blvd", null, "Irving", "TX", "75038"))).
+            header("Authorization", bearer(TestTokens.dispatcher())).
+            body(createDriverBody()).
             contentType("application/json").
             when().
-            post(baseUrl(getApplicationPort(), "drivers")).
+            post(driversUrl()).
             then().
             statusCode(200)
             .extract()
             .path("id");
   }
 
+  private void approveDriver() {
+    given().
+            header("Authorization", bearer(TestTokens.dispatcher())).
+            when().
+            post(driversUrl(Long.toString(driverId), "approve")).
+            then().
+            statusCode(200);
+  }
+
   private void noteDriverAvailable() {
     given().
+            header("Authorization", bearer(TestTokens.driver(driverId))).
             body(new DriverAvailability(true)).
             contentType("application/json").
             when().
@@ -574,8 +663,9 @@ public abstract class AbstractEndToEndTests {
     assignedDriverId = driverId;
 
     given().
+            header("Authorization", bearer(TestTokens.driver(driverId))).
             when().
-            get(baseUrl(getApplicationPort(), "drivers", Long.toString(driverId))).
+            get(driversUrl(Long.toString(driverId))).
             then().
             statusCode(200)
             .body("plan.actions[0].type", equalTo("PICKUP"))

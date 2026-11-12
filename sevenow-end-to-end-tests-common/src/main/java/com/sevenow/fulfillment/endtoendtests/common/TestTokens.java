@@ -31,6 +31,10 @@ public class TestTokens {
     return sign(secret(), "STORE_ADMIN", null, 0);
   }
 
+  public static String dispatcher() {
+    return sign(secret(), "DISPATCHER", null, 0);
+  }
+
   public static String bearer(String token) {
     return "Bearer " + token;
   }

@@ -196,6 +196,33 @@ public class OrderServiceTest {
   }
 
   @Test
+  public void shouldAssignAcceptedOrderToAvailableApprovedDriver() {
+    Order order = givenOrder();
+    Driver driver = mock(Driver.class);
+    when(driver.getId()).thenReturn(DRIVER_ID);
+    when(driverRepository.findAllAvailable()).thenReturn(Collections.singletonList(driver));
+    actAs(SevenowRole.STORE_ASSOCIATE, STORE_ID);
+
+    orderService.accept(ORDER_ID, LocalDateTime.now().plusHours(1));
+
+    assertThat(order.getOrderState()).isEqualTo(OrderState.ACCEPTED);
+    assertThat(order.getAssignedDriver()).isSameAs(driver);
+    verify(driver, times(2)).addAction(any(Action.class));
+  }
+
+  @Test
+  public void shouldRejectAcceptWhenNoDriverIsAvailable() {
+    Order order = givenOrder();
+    when(driverRepository.findAllAvailable()).thenReturn(Collections.emptyList());
+    actAs(SevenowRole.STORE_ASSOCIATE, STORE_ID);
+
+    assertThatThrownBy(() -> orderService.accept(ORDER_ID, LocalDateTime.now().plusHours(1)))
+            .isInstanceOf(NoDriverAvailableException.class);
+    assertThat(order.getOrderState()).isEqualTo(OrderState.APPROVED);
+    assertThat(order.getAssignedDriver()).isNull();
+  }
+
+  @Test
   public void shouldRejectOrderPlacedForAnotherCustomer() {
     actAs(SevenowRole.CUSTOMER, CUSTOMER_ID + 1);
 
